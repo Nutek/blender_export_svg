@@ -227,18 +227,15 @@ class ExportSVG(bpy.types.Operator):
                 x = str(sce.render.resolution_x)
                 y = str(sce.render.resolution_y)
                 output_file(
-                    '<svg xmlns="http://www.w3.org/2000/svg" '
-                    'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
-                    'xmlns:xlink="http://www.w3.org/1999/xlink" width="'
-                    + x
-                    + 'px" height="'
-                    + y
-                    + 'px">\n\n'
+                    '<svg xmlns="http://www.w3.org/2000/svg"'
+                    + ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
+                    + ' xmlns:xlink="http://www.w3.org/1999/xlink"'
+                    + f' width="{x}px" height="{y}px">\n\n'
                 )
 
             # new inkscape layer
             output_file(
-                '<g inkscape:groupmode="layer" id="' + str(time.asctime()) + '">\n\n'
+                f'<g inkscape:groupmode="layer" id="{str(time.asctime())}">\n\n'
             )
 
             # opacity value
@@ -251,13 +248,7 @@ class ExportSVG(bpy.types.Operator):
             if wm.algo_vert != "nothing" and wm.use_clone:
                 clone = "X_" + str(R.choice(list(range(999))))
                 output_file(
-                    '<g id="'
-                    + clone
-                    + '" stroke-width="2"'
-                    + opa
-                    + ' stroke="'
-                    + str_rgb(wm.col_4)
-                    + '">'
+                    f'<g id="{clone}" stroke-width="2"{opa} stroke="{str_rgb(wm.col_4)}">'
                     + '\n  <line x1="-10" y1="0" x2="10" y2="0" /><line x1="0" y1="10" x2="0" y2="-10" />\n</g>\n\n'
                 )
 
@@ -269,32 +260,18 @@ class ExportSVG(bpy.types.Operator):
                 else:
                     fondo = str_rgb(wm.col_2)
                 output_file(
-                    '<g id="stripe'
-                    + ran
-                    + '"><rect fill="'
-                    + fondo
-                    + '" x="0" y="0" height="10" width="1" />'
-                    '<rect fill="'
-                    + str_rgb(wm.col_3)
-                    + '" x="0" y="0" height="2" width="1" /></g>\n\n<defs>\n'
+                    f'<g id="stripe{ran}">'
+                    + f'<rect fill="{fondo}" x="0" y="0" height="10" width="1" />'
+                    + f'<rect fill="{str_rgb(wm.col_3)}" x="0" y="0" height="2" width="1" />'
+                    + "</g>\n\n<defs>\n"
                 )
                 c = [2.5, 3.5, 5, 7, 10]
                 for i in range(5):
                     output_file(
-                        '<pattern id="pat_'
-                        + ran
-                        + "_"
-                        + str(i)
-                        + '" patternUnits="userSpaceOnUse" width="1" '
-                        'height="'
-                        + str(c[i])
-                        + '" patternTransform="rotate('
-                        + str(R.randrange(-45, 45))
-                        + ") scale("
-                        + str(wm.pat_sca)
-                        + ')"><use xlink:href="#stripe'
-                        + ran
-                        + '" /></pattern>\n'
+                        f'<pattern id="pat_{ran}_{str(i)}" patternUnits="userSpaceOnUse" width="1" '
+                        + f'height="{str(c[i])}" patternTransform="rotate({str(R.randrange(-45, 45))}) scale({str(wm.pat_sca)})">'
+                        + f'<use xlink:href="#stripe{ran}" />'
+                        + "</pattern>\n"
                     )
                 output_file("</defs>\n\n")
 
@@ -357,9 +334,7 @@ class ExportSVG(bpy.types.Operator):
                 object_2_bm(context, o, mes, line)
                 ver = mes.verts
 
-                output_file(
-                    '<g id="' + o.name + '">  <!-- start ' + o.name + " -->\n\n"
-                )
+                output_file(f'<g id="{o.name}">  <!-- start {o.name} -->\n\n')
 
                 # draw a curve in the SVG
                 if line[0]:
@@ -367,22 +342,12 @@ class ExportSVG(bpy.types.Operator):
                     V = [v for v in I if v[4]]
                     if len(V) > 1:
                         output_file(
-                            '  <path id="curve_3D.'
-                            + o.name
-                            + '" d="M '
-                            + V[0][0]
-                            + ","
-                            + V[0][1]
-                            + " L "
+                            f'  <path id="curva_3D.{o.name}" d="M {V[0][0]},{V[0][1]} L '
                         )
                         for c in V:
                             output_file(c[2])
                         output_file(
-                            '" stroke="'
-                            + str_rgb(wm.col_5)
-                            + '" stroke-width="'
-                            + str(round(wm.stroke_wid, 2))
-                            + '" stroke-linecap="round" fill="none" />\n\n'
+                            f'" stroke="{str_rgb(wm.col_5)}" stroke-width="{str(round(wm.stroke_wid, 2))}" stroke-linecap="round" fill="none" />\n\n'
                         )
 
                 # overlap beziers
@@ -416,13 +381,7 @@ class ExportSVG(bpy.types.Operator):
                                         + str_xy(v[2])[2]
                                     )
                                 if spline.use_cyclic_u:
-                                    bez += (
-                                        "C"
-                                        + str_xy(bp[-1].handle_right)[2]
-                                        + str_xy(bp[0].handle_left)[2]
-                                        + str_xy(bp[0].co)[2]
-                                        + "z"
-                                    )
+                                    bez += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
                                 bez += '" />\n'
                         bpy.data.curves.remove(cur)
 
@@ -509,26 +468,16 @@ class ExportSVG(bpy.types.Operator):
                     stroke = ""
                     if wm.algo_edge != "nothing":
                         if wm.edge_wid:
-                            w = (
-                                ' stroke-width="'
-                                + str(wm.edge_wid)
-                                + 'px" stroke-linejoin="'
-                                + wm.edge_join
-                                + '" stroke-linecap="round"'
-                            )
+                            w = f' stroke-width="{str(wm.edge_wid)}px" stroke-linejoin="{wm.edge_join}" stroke-linecap="round"'
 
                     # border style
-                    output_file('<g id="face_edges.' + o.name + '"' + w)
+                    output_file(f'<g id="face_edges.{o.name}"{w}')
                     if wm.algo_edge == "linear":
                         output_file(' stroke="' + str_rgb(wm.col_3) + '">\n')
                     elif wm.algo_edge == "dashed":
                         u = str(1 + 3 * wm.edge_wid) + "," + str(1 + 1.5 * wm.edge_wid)
                         output_file(
-                            ' stroke="'
-                            + str_rgb(wm.col_3)
-                            + '" stroke-dasharray="'
-                            + u
-                            + '">\n'
+                            f' stroke="{str_rgb(wm.col_3)}" stroke-dasharray="{u}">\n'
                         )
                     else:
                         output_file(">\n")
@@ -644,13 +593,11 @@ class ExportSVG(bpy.types.Operator):
                         # edge per face
                         if wm.algo_color != "nothing" or wm.algo_shade == "pattern":
                             if wm.algo_edge == "match_fill":
-                                stroke = ' stroke="' + fill + '"'
+                                stroke = f' stroke="{fill}"'
 
                         # draw the vertices of the faces
                         if wm.use_effect == "nothing" or wm.use_effect == "explode":
-                            output_file(
-                                "  <polygon" + stroke + ' fill="' + fill + '" points="'
-                            )
+                            output_file(f'  <polygon{stroke} fill="{fill}" points="')
                             for v in mes.faces[f].verts:
                                 if wm.use_effect == "explode":
                                     m = Vector(
@@ -676,16 +623,10 @@ class ExportSVG(bpy.types.Operator):
                                 except:
                                     m = "0,0"
                                 output_file(
-                                    '"'
-                                    + opa
-                                    + ' transform="rotate('
-                                    + str(dis * noise(0, wm.fac_expl))
-                                    + ","
-                                    + m
-                                    + ')" />\n'
+                                    f'"{opa} transform="rotate({str(dis * noise(0, wm.fac_expl))},{m})" />\n'
                                 )
                             else:
-                                output_file('"' + opa + " />\n")
+                                output_file(f'" {opa} />\n')
 
                         else:
                             dot = abs(FF[f][3])
@@ -706,14 +647,12 @@ class ExportSVG(bpy.types.Operator):
 
                             if wm.use_effect == "circles" and l > 1:
                                 output_file(
-                                    '  <circle cx="%s" cy="%s" r="%s" %s fill="%s" %s />\n'
-                                    % (x, y, l, stroke, fill, opa)
+                                    f'  <circle cx="{x}" cy="{y}" r="{l}" {stroke} fill="{fill}" {opa} />\n'
                                 )
 
                             if wm.use_effect == "squares" and l > 1:
                                 output_file(
-                                    '  <rect x="%s" y="%s" width="%s" height="%s" %s fill="%s" %s />\n'
-                                    % (x - l, y - l, l * 2, l * 2, stroke, fill, opa)
+                                    f'  <rect x="{x - l}" y="{y - l}" width="{l * 2}" height="{l * 2}" {stroke} fill="{fill}" {opa} />\n'
                                 )
 
                     output_file("</g>\n\n")
@@ -721,11 +660,7 @@ class ExportSVG(bpy.types.Operator):
                 # draw vertices as circles / clones
                 if wm.algo_vert != "nothing":
                     output_file(
-                        '<g id="vertices.'
-                        + o.name
-                        + '" fill="'
-                        + str_rgb(wm.col_4)
-                        + '">\n'
+                        f'<g id="vertices.{o.name}" fill="{str_rgb(wm.col_4)}">\n'
                     )
                     for i, v in enumerate(V):
                         test = visible(mes, v, "vertice")
@@ -760,29 +695,14 @@ class ExportSVG(bpy.types.Operator):
                                 if r >= 1:
                                     if wm.use_clone:
                                         output_file(
-                                            '  <use xlink:href="#'
-                                            + clone
-                                            + '" transform="translate('
-                                            + c[2]
-                                            + ") scale("
-                                            + str(round(r / 10, dec))
-                                            + ","
-                                            + str(round(r / 10, dec))
-                                            + ") rotate("
-                                            + str(round(R.random() * 360))
-                                            + ')" />\n'
+                                            f'  <use xlink:href="#{clone}"'
+                                            + f' transform="translate({c[2]})'
+                                            + f" scale({str(round(r / 10, dec))},{str(round(r / 10, dec))})"
+                                            + f' rotate({str(round(R.random() * 360))})" />\n'
                                         )
                                     else:
                                         output_file(
-                                            '  <circle cx="'
-                                            + c[0]
-                                            + '" cy="'
-                                            + c[1]
-                                            + '" r="'
-                                            + str(r / 2)
-                                            + '"'
-                                            + opa
-                                            + " />\n"
+                                            f'  <circle cx="{c[0]}" cy="{c[1]}" r="{str(r / 2)}"{opa} />\n'
                                         )
                     output_file("</g>\n\n")
 
@@ -799,15 +719,7 @@ class ExportSVG(bpy.types.Operator):
                     c = str_xy(ver[off].co)
                     if c[4]:
                         output_file(
-                            '<path id="path.'
-                            + o.name
-                            + '" d="M '
-                            + c[0]
-                            + ","
-                            + c[1]
-                            + " "
-                            + wm.curve
-                            + " "
+                            f'<path id="path.{o.name}" d="M {c[0]},{c[1]} {wm.curve} '
                         )
                         while i <= lev:  ####
                             if i + off >= lev:
@@ -817,7 +729,7 @@ class ExportSVG(bpy.types.Operator):
                                 output_file(c[2])
                             i += wm.curve_step + extra
                         output_file(
-                            ' z" stroke="' + str_rgb(wm.col_5) + '" fill="none" />\n\n'
+                            f' z" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
                         )
 
                 # number vertices -step + variation-
@@ -839,13 +751,7 @@ class ExportSVG(bpy.types.Operator):
                             c = str_xy(ver[i + off].co)
                             if c[4]:
                                 output_file(
-                                    '  <text x="'
-                                    + c[0]
-                                    + '" y="'
-                                    + c[1]
-                                    + '">'
-                                    + str(i)
-                                    + "</text>\n"
+                                    f'  <text x="{c[0]}" y="{c[1]}">{str(i)}</text>\n'
                                 )
                             i += wm.curve_step + extra
                         output_file("</g>\n\n")
@@ -854,11 +760,7 @@ class ExportSVG(bpy.types.Operator):
                 if wm.extra_bordes != "nothing":
                     edg = mes.edges
                     output_file(
-                        '<g id="bordes.'
-                        + o.name
-                        + '" stroke="'
-                        + str_rgb(wm.col_6)
-                        + '" stroke-linecap="round" fill="none">\n'
+                        f'<g id="bordes.{o.name}" stroke="{str_rgb(wm.col_6)}" stroke-linecap="round" fill="none">\n'
                     )
 
                     for e in edg:
@@ -893,17 +795,7 @@ class ExportSVG(bpy.types.Operator):
 
                                 if wm.extra_bordes == "extender":
                                     output_file(
-                                        '  <line stroke-width="'
-                                        + str(round(wm.stroke_wid, 2))
-                                        + '" x1="'
-                                        + a
-                                        + '" y1="'
-                                        + b
-                                        + '" x2="'
-                                        + c
-                                        + '" y2="'
-                                        + d
-                                        + '" />\n'
+                                        f'  <line stroke-width="{str(round(wm.stroke_wid, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
                                     )
 
                                 elif wm.extra_bordes == "curved_strokes":
@@ -921,21 +813,7 @@ class ExportSVG(bpy.types.Operator):
                                         round(v3[1], dec)
                                     )
                                     output_file(
-                                        '  <path stroke-width="'
-                                        + str(round(wm.stroke_wid, 2))
-                                        + '" d="M '
-                                        + a
-                                        + " "
-                                        + b
-                                        + " Q "
-                                        + e
-                                        + ","
-                                        + f
-                                        + " "
-                                        + c
-                                        + ","
-                                        + d
-                                        + '" />\n'
+                                        f'  <path stroke-width="{str(round(wm.stroke_wid, 2))}" d="M {a} {b} Q {e},{f} {c},{d}" />\n'
                                     )
 
                                 elif wm.extra_bordes == "brush":
@@ -950,29 +828,7 @@ class ExportSVG(bpy.types.Operator):
                                         round(v4[1], dec)
                                     )
                                     output_file(
-                                        '  <path fill="'
-                                        + str_rgb(wm.col_6)
-                                        + '" d="M '
-                                        + a
-                                        + ","
-                                        + b
-                                        + " Q "
-                                        + e
-                                        + ","
-                                        + f
-                                        + " "
-                                        + c
-                                        + ","
-                                        + d
-                                        + " Q "
-                                        + g
-                                        + ","
-                                        + h
-                                        + " "
-                                        + a
-                                        + ","
-                                        + b
-                                        + '" />\n'
+                                        f'  <path fill="{str_rgb(wm.col_6)}" d="M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}" />\n'
                                     )
 
                                 else:  # outline
@@ -981,21 +837,11 @@ class ExportSVG(bpy.types.Operator):
                                     W = 10 - round(abs(W * 5), dec)
                                     if W > wm.stroke_con * 9:
                                         output_file(
-                                            '  <line stroke-width="'
-                                            + str(round(W * wm.stroke_wid / 5, 2))
-                                            + '" x1="'
-                                            + a
-                                            + '" y1="'
-                                            + b
-                                            + '" x2="'
-                                            + c
-                                            + '" y2="'
-                                            + d
-                                            + '" />\n'
+                                            f'  <line stroke-width="{str(round(W * wm.stroke_wid / 5, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
                                         )
                     output_file("</g>\n\n")
 
-                output_file("</g>  <!-- end " + o.name + " -->\n\n")
+                output_file(f"</g>  <!-- end {o.name} -->\n\n")
 
                 # release mesh memory
                 mes.free()
@@ -1010,7 +856,7 @@ class ExportSVG(bpy.types.Operator):
 
             # origin as a circle / name
             if wm.use_origin:
-                output_file('<g id="object.origin" fill="' + str_rgb(wm.col_5) + '">\n')
+                output_file(f'<g id="object.origin" fill="{str_rgb(wm.col_5)}">\n')
                 for i, o in enumerate(sel_valid):
                     s = max(
                         0.5,
@@ -1027,45 +873,13 @@ class ExportSVG(bpy.types.Operator):
                     c = OO[i]
                     if wm.use_name:
                         output_file(
-                            '  <text font-size="'
-                            + str(round(wm.fon_size * r / 10, 1))
-                            + '" text-anchor="middle"'
-                            + opa
-                            + ' transform = "rotate('
-                            + str(round(noise(0, s * 2)))
-                            + ","
-                            + c[2]
-                            + ')" '
-                            'x="'
-                            + c[0]
-                            + '" y="'
-                            + c[1]
-                            + '">'
-                            + str(o.name)
-                            + "</text>\n"
+                            f'  <text font-size="{str(round(wm.fon_size * r / 10, 1))}" text-anchor="middle"{opa} transform = "rotate({str(round(noise(0, s * 2)))},{c[2]})" '
+                            + f'x="{c[0]}" y="{c[1]}">{str(o.name)}</text>\n'
                         )
                     else:
                         output_file(
-                            '  <circle cx="'
-                            + c[0]
-                            + '" cy="'
-                            + c[1]
-                            + '"'
-                            + opa
-                            + ' r="'
-                            + str(r)
-                            + '" />\n'
-                            '  <circle fill="'
-                            + str_rgb(vcol(wm.col_2))
-                            + '" cx="'
-                            + c[0]
-                            + '" cy="'
-                            + c[1]
-                            + '"'
-                            + opa
-                            + ' r="'
-                            + str(r / 2)
-                            + '" />\n'
+                            f'  <circle cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r)}" />\n'
+                            + f'  <circle fill="{str_rgb(vcol(wm.col_2))}" cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r / 2)}" />\n'
                         )
                 output_file("</g>\n\n")
 
@@ -1075,13 +889,7 @@ class ExportSVG(bpy.types.Operator):
                     for i, c in enumerate(OO[:-1]):
                         if i == 0:
                             output_file(
-                                '  <path id="object.union" d="M '
-                                + c[0]
-                                + ","
-                                + c[1]
-                                + " "
-                                + wm.curve
-                                + " "
+                                f'  <path id="object.union" d="M {c[0]},{c[1]} {wm.curve} '
                             )
                         else:
                             output_file(c[2])
@@ -1100,33 +908,20 @@ class ExportSVG(bpy.types.Operator):
                             )
                             output_file(str(cc[0]) + "," + str(cc[1]) + " ")
                     output_file(
-                        OO[-1][2]
-                        + '" stroke="'
-                        + str_rgb(wm.col_5)
-                        + '" fill="none" />\n\n'
+                        f'{OO[-1][2]}" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
                     )
 
             # draw hierarchies / object relations
             if wm.obj_rel:
                 output_file(
-                    '<g id="relations" stroke="'
-                    + str_rgb(wm.col_5)
-                    + '" fill="none">\n'
+                    f'<g id="relaciones" stroke="{str_rgb(wm.col_5)}" fill="none">\n'
                 )
                 for i, o in enumerate(sel_valid):
                     if o.parent:
                         h = str_xy(o.matrix_world.to_translation())
                         p = str_xy(o.parent.matrix_world.to_translation())
                         output_file(
-                            '  <path id="rel.'
-                            + o.name
-                            + "."
-                            + o.parent.name
-                            + '" d="M '
-                            + h[2]
-                            + " L "
-                            + p[2]
-                            + '" />\n'
+                            f'  <path id="rel.{o.name}.{o.parent.name}" d="M {p[2]}" />\n'
                         )
                 output_file("</g>\n")
 
