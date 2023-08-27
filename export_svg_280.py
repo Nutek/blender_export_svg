@@ -25,8 +25,8 @@ class ExportSVG(bpy.types.Operator):
         wm = bpy.context.window_manager
         region = context.region
         region3d = context.space_data.region_3d
-        centro = (region.width / 2, region.height / 2)
-        cam_co = V3D.region_2d_to_origin_3d(region, region3d, centro)
+        center = (region.width / 2, region.height / 2)
+        cam_co = V3D.region_2d_to_origin_3d(region, region3d, center)
         orto = region3d.is_perspective == False
         dec = 4  # precision
 
@@ -42,7 +42,7 @@ class ExportSVG(bpy.types.Operator):
 
         sel = bpy.context.selected_objects
 
-        # definir una escala constante para modo ortogonal -> 1BU = 100px
+        # define scale factor for ortogonal mode -> 1BU = 100px
         if orto and wm.auto_sca:
             BU = Vector((1, 0, 0))
             BU.rotate(region3d.view_matrix.inverted())
@@ -55,12 +55,12 @@ class ExportSVG(bpy.types.Operator):
             svg_sca = wm.svg_scale
             slide_x = slide_y = 0
 
-        def visible(mes, indice, tipo):
+        def visible(mes, indice, type):
             if hasattr(mes.verts, "ensure_lookup_table"):
                 mes.verts.ensure_lookup_table()
                 mes.faces.ensure_lookup_table()
 
-            if tipo == "cara":
+            if type == "face":
                 val = mes.faces[indice].calc_center_median()
                 coo = V3D.location_3d_to_region_2d(region, region3d, val)
                 if not coo:
@@ -77,7 +77,7 @@ class ExportSVG(bpy.types.Operator):
                     dot = -dot
                 else:
                     dis = (cam_co - val).length
-            elif tipo == "vert":
+            elif type == "vertice":
                 v = mes.verts[indice]
                 val = v.co
                 coo = V3D.location_3d_to_region_2d(region, region3d, val)
@@ -88,7 +88,7 @@ class ExportSVG(bpy.types.Operator):
                 dis = (cam_co - val).length
             return (val, coo, ojo, dot, dis, True)
 
-        # 3d co - 2d co - vector vista - producto - distancia - valida
+        # 3d co - 2d co - vector view - product - distance - valid
 
         def str_xy(
             coo3D, esc=svg_sca, xxx=wm.offset_x + slide_x, yyy=wm.offset_y + slide_y
@@ -104,7 +104,7 @@ class ExportSVG(bpy.types.Operator):
             return (str(x), str(y), str(x) + "," + str(y) + " ", Vector((x, y)), True)
             # str x - str y - str x,y - vector x,y - valido
 
-        def ruido(a, b):
+        def noise(a, b):
             return round(R.gauss(a, b), dec)
 
         def vcol(col, r=0.25):
@@ -119,35 +119,35 @@ class ExportSVG(bpy.types.Operator):
             color = "rgb(%s,%s,%s)" % (round(r * 255), round(g * 255), round(b * 255))
             return color
 
-        def render_linea(obj):
-            modo_curva, modo_bezier = False, False
+        def render_line(obj):
+            mode_curve, mode_bezier = False, False
             if obj.type == "CURVE":
                 if (
                     not o.data.bevel_object
                     and o.data.bevel_depth < 0.001
                     and o.data.extrude < 0.001
                 ):
-                    modo_curva = True
+                    mode_curve = True
                 if "BEZIER" in [s.type for s in o.data.splines]:
-                    modo_bezier = True
-            return (modo_curva, modo_bezier)
+                    mode_bezier = True
+            return (mode_curve, mode_bezier)
 
-        def objeto_2_bm(context, obj, bm, convertir=False):
-            if convertir:
+        def object_2_bm(context, obj, bm, convert=False):
+            if convert:
                 depsgraph = bpy.context.evaluated_depsgraph_get()  ###
                 tmp = bpy.data.meshes.new_from_object(obj.evaluated_get(depsgraph))  ###
                 tmp.transform(obj.matrix_world)
                 bm.from_mesh(tmp)
                 bpy.data.meshes.remove(tmp)
             else:
-                if wm.disolver or wm.colapsar < 1:
+                if wm.dissolver or wm.collapse < 1:
                     mod = obj.modifiers.new("mod", "DECIMATE")  ###
                     mod.decimate_type = wm.deci_type
                     if wm.deci_type == "DISSOLVE":
-                        mod.angle_limit = wm.disolver
+                        mod.angle_limit = wm.dissolver
                         mod.use_dissolve_boundaries = False
                     else:
-                        mod.ratio = wm.colapsar
+                        mod.ratio = wm.collapse
                 if obj.type == "MESH":
                     bm.from_object(obj, context.depsgraph)
                     bm.transform(obj.matrix_world)
@@ -158,7 +158,7 @@ class ExportSVG(bpy.types.Operator):
                     bm.from_mesh(tmp)
                     bpy.data.meshes.remove(tmp)
 
-                if wm.disolver or wm.colapsar < 1:
+                if wm.dissolver or wm.collapse < 1:
                     obj.modifiers.remove(mod)
 
             # use a plane named 'bisect' to cut meshes
@@ -180,20 +180,20 @@ class ExportSVG(bpy.types.Operator):
             frame_list = [sce.frame_current]
         restore_frame = sce.frame_current
 
-        ## LOOP ANIMACION >>
+        ## LOOP ANIMATION >>
 
         for frame in frame_list:
             sce.frame_set(frame)
             # Atom adds frame number to file name.
-            parte_izq = os.path.splitext(wm.ruta)[0]
-            parte_der = os.path.splitext(wm.ruta)[1]
+            parte_izq = os.path.splitext(wm.route)[0]
+            parte_der = os.path.splitext(wm.route)[1]
             parte_num = str(int(sce.frame_current)).zfill(4)
             if wm.render_range:
                 new_path = bpy.path.abspath(
                     "%s_%s%s" % (parte_izq, parte_num, parte_der)
                 )
             else:
-                new_path = bpy.path.abspath(wm.ruta)
+                new_path = bpy.path.abspath(wm.route)
 
             tim = time.time()
 
@@ -201,26 +201,26 @@ class ExportSVG(bpy.types.Operator):
                 wm.ran_seed = R.randrange(0, 9999)
             R.seed(wm.ran_seed)
 
-            # incrementar archivo..?
-            if wm.use_continuar:
+            # increment file..?
+            if wm.use_continue:
                 try:
                     output_file = open(new_path, "r")
-                    datos = output_file.readlines()
+                    data = output_file.readlines()
                     output_file.close()
                 except:
-                    cierre = "nada"
+                    closing = "nothing"
                 try:
-                    cierre = datos[-2]
+                    closing = data[-2]
                 except:
-                    cierre = "vacio"
-                if cierre != "</svg>\n":
-                    wm.use_continuar = False
+                    closing = "empty"
+                if closing != "</svg>\n":
+                    wm.use_continue = False
                     return {"FINISHED"}
 
-            # abrir archivo para escribir
+            # open file for writing
             output_file = open(new_path, "w").write
-            if wm.use_continuar:
-                for nl in datos[:-3]:
+            if wm.use_continue:
+                for nl in data[:-3]:
                     output_file(nl)
                 output_file("\n\n<!-- new blender session -->\n\n\n")
             else:
@@ -236,23 +236,23 @@ class ExportSVG(bpy.types.Operator):
                     + 'px">\n\n'
                 )
 
-            # nueva capa de inkscape
+            # new inkscape layer
             output_file(
                 '<g inkscape:groupmode="layer" id="' + str(time.asctime()) + '">\n\n'
             )
 
-            # valor de opacidad
+            # opacity value
             if wm.col_opacity < 1:
                 opa = ' opacity="' + str(round(wm.col_opacity, dec)) + '"'
             else:
                 opa = ""
 
-            # objeto para clonar
-            if wm.algo_vert != "nada" and wm.use_clon:
-                clon = "X_" + str(R.choice(list(range(999))))
+            # object to clone
+            if wm.algo_vert != "nothing" and wm.use_clone:
+                clone = "X_" + str(R.choice(list(range(999))))
                 output_file(
                     '<g id="'
-                    + clon
+                    + clone
                     + '" stroke-width="2"'
                     + opa
                     + ' stroke="'
@@ -261,15 +261,15 @@ class ExportSVG(bpy.types.Operator):
                     + '\n  <line x1="-10" y1="0" x2="10" y2="0" /><line x1="0" y1="10" x2="0" y2="-10" />\n</g>\n\n'
                 )
 
-            # patrones de rayas
-            if wm.algo_color == "patron":
+            # patrones de dashed
+            if wm.algo_color == "pattern":
                 ran = str(R.randint(0, 999))
                 if wm.pat_col:
                     fondo = "none"
                 else:
                     fondo = str_rgb(wm.col_2)
                 output_file(
-                    '<g id="raya'
+                    '<g id="stripe'
                     + ran
                     + '"><rect fill="'
                     + fondo
@@ -292,25 +292,25 @@ class ExportSVG(bpy.types.Operator):
                         + str(R.randrange(-45, 45))
                         + ") scale("
                         + str(wm.pat_sca)
-                        + ')"><use xlink:href="#raya'
+                        + ')"><use xlink:href="#stripe'
                         + ran
                         + '" /></pattern>\n'
                     )
                 output_file("</defs>\n\n")
 
-            ## OPERACIONES A NIVEL MALLA >>
+            ## OPERATIONS AT MESH LEVEL >>
 
-            # remover objetos con coordenadas no validas
+            # remove object with invalid coordinates
             sel_valid = [o for o in sel if str_xy(o.matrix_world.to_translation())[4]]
 
-            # ordenar los objetos segun distancia al visor -usa origen de objetos-
+            # sort objects by distance to viewer -usa object origin-
             if wm.order_obj:
-                distancia = [
+                distance = [
                     (round((cam_co - o.location).length_squared, 5), o.name)
                     for o in sel_valid
                 ]
-                distancia.sort(reverse=True)
-                sel_valid = [sce.objects[d[1]] for d in distancia]
+                distance.sort(reverse=True)
+                sel_valid = [sce.objects[d[1]] for d in distance]
 
             sel = [
                 o
@@ -320,7 +320,7 @@ class ExportSVG(bpy.types.Operator):
             if not sel:
                 self.report({"ERROR"}, "No selected objects..!")
 
-            # unir todos los objetos en una sola malla
+            # unite all objects into a single mesh
             if wm.join_objs and len(sel) > 1:
                 bpy.ops.object.select_all(action="DESELECT")
 
@@ -345,29 +345,29 @@ class ExportSVG(bpy.types.Operator):
                             pass
                 sel = [join]
 
-            # superponer beziers
+            # overlap beziers
             if wm.use_bezier:
                 bez = ""
 
-            # loop mallas
+            # mesh loop
             for o in sel:
-                # convertir objeto + modificadores en malla
+                # convert objects + mesh modifiers
                 mes = bmesh.new()
-                linea = render_linea(o)
-                objeto_2_bm(context, o, mes, linea)
+                line = render_line(o)
+                object_2_bm(context, o, mes, line)
                 ver = mes.verts
 
                 output_file(
                     '<g id="' + o.name + '">  <!-- start ' + o.name + " -->\n\n"
                 )
 
-                # dibujar una curva en el SVG
-                if linea[0]:
+                # draw a curve in the SVG
+                if line[0]:
                     I = [str_xy(v.co) for v in mes.verts]
                     V = [v for v in I if v[4]]
                     if len(V) > 1:
                         output_file(
-                            '  <path id="curva_3D.'
+                            '  <path id="curve_3D.'
                             + o.name
                             + '" d="M '
                             + V[0][0]
@@ -385,9 +385,9 @@ class ExportSVG(bpy.types.Operator):
                             + '" stroke-linecap="round" fill="none" />\n\n'
                         )
 
-                # superponer beziers
-                if wm.use_bezier and linea[1]:
-                    if not linea[0]:
+                # overlap beziers
+                if wm.use_bezier and line[1]:
+                    if not line[0]:
                         I = [str_xy(v.co) for v in mes.verts]
                         V = [v for v in I if v[4]]
                     if len(V) > 1:
@@ -426,14 +426,14 @@ class ExportSVG(bpy.types.Operator):
                                 bez += '" />\n'
                         bpy.data.curves.remove(cur)
 
-                # juntar info para las caras
+                # gather info for the faces
                 FF = {}
                 for i, f in enumerate(mes.faces):
                     FF[i] = visible(
-                        mes, i, "cara"
-                    )  # 3D - 2D - vector vista - producto - distancia - valida
+                        mes, i, "face"
+                    )  # 3D - 2D - vector view - product - distance - valid
 
-                # listado de caras visibles
+                # list of visible faces
                 S = wm.use_select - 1
 
                 if wm.use_frontal:
@@ -453,28 +453,28 @@ class ExportSVG(bpy.types.Operator):
                         if FF[k][5] and mes.faces[k].calc_area() > wm.min_area
                     ]
 
-                # listado de vertices en caras visibles ####
+                # list of vertices in visible faces ####
                 I = []
                 for k in P:
                     I.append([v.index for v in mes.faces[k].verts])
                 V = list(set([v for f in I for v in f]))
 
-                # juntar info para los vertices en caras visibles
-                QQ = {}  # str x - str y - str x,y - vector x,y - valido
+                # gather info for vertices on visible faces
+                QQ = {}  # str x - str y - str x,y - vector x,y - valid
                 for v in V:
                     QQ[v] = str_xy(ver[v].co)
 
-                # ordenar las caras segun distancia al visor -usa centroide-
-                distancia = [(round(FF[f][4], dec), f) for f in P]
+                # order the faces according to distance to the viewer -use centroid-
+                distance = [(round(FF[f][4], dec), f) for f in P]
                 if orto:
-                    distancia.sort()
+                    distance.sort()
                 else:
-                    distancia.sort(reverse=True)
-                P = [d[1] for d in distancia]
+                    distance.sort(reverse=True)
+                P = [d[1] for d in distance]
 
-                # eliminar vertices dentro de caras 3 y 4 lados -ver de extender a ngons-
+                # remove vertices inside faces with 3 or 4 edges -see extend to ngons-
                 if wm.use_occ:
-                    if wm.extra_bordes != "nada" or wm.algo_vert != "nada":
+                    if wm.extra_bordes != "nothing" or wm.algo_vert != "nothing":
                         for c in P:
                             if mes.faces[c].calc_area() > wm.min_area * 10:
                                 pv = mes.faces[c].verts
@@ -498,16 +498,16 @@ class ExportSVG(bpy.types.Operator):
                                         if (cam_co - ver[v].co) > (cam_co - FF[c][0]):
                                             V.remove(v)
 
-                # llenar CARAS & trazar BORDES
+                # fill faces & trace edges
                 if P and (
-                    wm.algo_color != "nada"
-                    or wm.algo_edge != "nada"
-                    or wm.algo_shade == "nada"
+                    wm.algo_color != "nothing"
+                    or wm.algo_edge != "nothing"
+                    or wm.algo_shade == "nothing"
                 ):
-                    # ancho de bordes
+                    # border width
                     w = ""
                     stroke = ""
-                    if wm.algo_edge != "nada":
+                    if wm.algo_edge != "nothing":
                         if wm.edge_wid:
                             w = (
                                 ' stroke-width="'
@@ -517,11 +517,11 @@ class ExportSVG(bpy.types.Operator):
                                 + '" stroke-linecap="round"'
                             )
 
-                    # estilo de bordes
-                    output_file('<g id="caras_bordes.' + o.name + '"' + w)
-                    if wm.algo_edge == "regular":
+                    # border style
+                    output_file('<g id="face_edges.' + o.name + '"' + w)
+                    if wm.algo_edge == "linear":
                         output_file(' stroke="' + str_rgb(wm.col_3) + '">\n')
-                    elif wm.algo_edge == "rayas":
+                    elif wm.algo_edge == "dashed":
                         u = str(1 + 3 * wm.edge_wid) + "," + str(1 + 1.5 * wm.edge_wid)
                         output_file(
                             ' stroke="'
@@ -533,43 +533,42 @@ class ExportSVG(bpy.types.Operator):
                     else:
                         output_file(">\n")
 
-                    # calcular paso profundidad
-                    if wm.algo_shade == "profundidad" or wm.use_effect == "explotar":
+                    # calculate step depth
+                    if wm.algo_shade == "depth" or wm.use_effect == "explode":
                         if len(P):
-                            rango = abs((distancia[0][0] - distancia[-1][0])) + 1e-05
+                            range_value = (
+                                abs((distance[0][0] - distance[-1][0])) + 1e-05
+                            )
                         else:
-                            rango = 0.5
-                        # if wm.algo_shade == 'profundidad':
+                            range_value = 0.5
+                        # if wm.algo_shade == 'depth':
                         # col = vcol(wm.col_1, wm.col_noise)
 
-                    # color por objeto
+                    # object color
 
-                    if wm.algo_color == "objetos":
+                    if wm.algo_color == "object":
                         colobj = vcol(wm.col_1, wm.col_noise)
 
-                    elif wm.algo_color == "pal_objetos":
+                    elif wm.algo_color == "obj_pallete":
                         colobj = R.choice(
                             [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
                         )
 
-                    # loop caras ------------------------------------------------------>
+                    # loop faces ------------------------------------------------------>
 
                     for i, f in enumerate(P):
-                        if (
-                            wm.algo_shade == "profundidad"
-                            or wm.use_effect == "explotar"
-                        ):
-                            dis = (distancia[0][0] - distancia[i][0]) / rango
+                        if wm.algo_shade == "depth" or wm.use_effect == "explode":
+                            dis = (distance[0][0] - distance[i][0]) / range_value
 
-                        # aplicar color por caras
+                        # apply color by faces
 
-                        if wm.algo_color == "objetos" or wm.algo_color == "pal_objetos":
+                        if wm.algo_color == "object" or wm.algo_color == "obj_pallete":
                             col = colobj
 
-                        elif wm.algo_color == "caras":
+                        elif wm.algo_color == "faces":
                             col = vcol(wm.col_2, 0.01 + wm.col_noise / 2)
 
-                        elif wm.algo_color == "pal_caras":
+                        elif wm.algo_color == "face_pallete":
                             col = R.choice(
                                 [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
                             )
@@ -589,7 +588,7 @@ class ExportSVG(bpy.types.Operator):
                             col.r = 1 - val
                             col.g = col.b = val
 
-                        elif wm.algo_color == "patron":
+                        elif wm.algo_color == "pattern":
                             n = int(5.25 * abs(FF[f][3]) - 0.5)
                             if n > 4:
                                 fill = fondo
@@ -600,12 +599,12 @@ class ExportSVG(bpy.types.Operator):
 
                         copiacol = col.copy()
 
-                        if wm.algo_shade == "sombra_dentro":
+                        if wm.algo_shade == "back_light":
                             dot = abs(FF[f][3])
                             copiacol.v = max(1 - dot, 0.001)
                             copiacol.s *= dot
 
-                        elif wm.algo_shade == "sombra_fuera":
+                        elif wm.algo_shade == "front_light":
                             dot = abs(FF[f][3])
                             copiacol.v = dot
                             copiacol.s *= 1 - dot
@@ -615,12 +614,12 @@ class ExportSVG(bpy.types.Operator):
                             copiacol.v = 1 - val
                             copiacol.s = 0.75 - val / 2
 
-                        elif wm.algo_shade == "prisma":
+                        elif wm.algo_shade == "color_ramp":
                             dot = abs(FF[f][3])
                             copiacol.v = dot
                             copiacol.h = math.modf(copiacol.h + dot)[0]
 
-                        elif wm.algo_shade == "suave":
+                        elif wm.algo_shade == "soft_shading":
                             dot = abs(FF[f][3])
                             copiacol.v = dot
 
@@ -628,7 +627,7 @@ class ExportSVG(bpy.types.Operator):
                             dot = round(abs(FF[f][3]) * wm.pos_step)
                             copiacol.v = dot / wm.pos_step
 
-                        elif wm.algo_shade == "profundidad":
+                        elif wm.algo_shade == "depth":
                             copiacol.v = dis
                             copiacol.s = dis * col.s
 
@@ -636,29 +635,29 @@ class ExportSVG(bpy.types.Operator):
                             dot = (FF[f][3]) < 0
                             copiacol.v = 0.5 * dot + 0.25
 
-                        if wm.algo_color != "patron":
+                        if wm.algo_color != "pattern":
                             fill = str_rgb(copiacol)
 
-                        if wm.algo_color == "nada":
+                        if wm.algo_color == "nothing":
                             fill = "none"
 
-                        # borde por cara
-                        if wm.algo_color != "nada" or wm.algo_shade == "patron":
-                            if wm.algo_edge == "relleno":
+                        # edge per face
+                        if wm.algo_color != "nothing" or wm.algo_shade == "pattern":
+                            if wm.algo_edge == "match_fill":
                                 stroke = ' stroke="' + fill + '"'
 
-                        # dibujar los vertices de las caras
-                        if wm.use_effect == "nada" or wm.use_effect == "explotar":
+                        # draw the vertices of the faces
+                        if wm.use_effect == "nothing" or wm.use_effect == "explode":
                             output_file(
                                 "  <polygon" + stroke + ' fill="' + fill + '" points="'
                             )
                             for v in mes.faces[f].verts:
-                                if wm.use_effect == "explotar":
+                                if wm.use_effect == "explode":
                                     m = Vector(
                                         (
-                                            ruido(0, wm.fac_noise),
-                                            ruido(0, wm.fac_noise),
-                                            (ruido(0, wm.fac_noise)),
+                                            noise(0, wm.fac_noise),
+                                            noise(0, wm.fac_noise),
+                                            (noise(0, wm.fac_noise)),
                                         )
                                     )
                                     test = str_xy(ver[v.index].co + m / 50)
@@ -667,7 +666,7 @@ class ExportSVG(bpy.types.Operator):
                                 else:
                                     output_file(str(QQ[v.index][2]))
 
-                            if wm.use_effect == "explotar":
+                            if wm.use_effect == "explode":
                                 try:
                                     m = (
                                         str(FF[i][1][0])
@@ -680,7 +679,7 @@ class ExportSVG(bpy.types.Operator):
                                     '"'
                                     + opa
                                     + ' transform="rotate('
-                                    + str(dis * ruido(0, wm.fac_expl))
+                                    + str(dis * noise(0, wm.fac_expl))
                                     + ","
                                     + m
                                     + ')" />\n'
@@ -705,13 +704,13 @@ class ExportSVG(bpy.types.Operator):
                             x = float(xy[0])
                             y = float(xy[1])
 
-                            if wm.use_effect == "circulos" and l > 1:
+                            if wm.use_effect == "circles" and l > 1:
                                 output_file(
                                     '  <circle cx="%s" cy="%s" r="%s" %s fill="%s" %s />\n'
                                     % (x, y, l, stroke, fill, opa)
                                 )
 
-                            if wm.use_effect == "cuadrados" and l > 1:
+                            if wm.use_effect == "squares" and l > 1:
                                 output_file(
                                     '  <rect x="%s" y="%s" width="%s" height="%s" %s fill="%s" %s />\n'
                                     % (x - l, y - l, l * 2, l * 2, stroke, fill, opa)
@@ -719,8 +718,8 @@ class ExportSVG(bpy.types.Operator):
 
                     output_file("</g>\n\n")
 
-                # dibujar VERTICES como circulos / clones
-                if wm.algo_vert != "nada":
+                # draw vertices as circles / clones
+                if wm.algo_vert != "nothing":
                     output_file(
                         '<g id="vertices.'
                         + o.name
@@ -729,23 +728,23 @@ class ExportSVG(bpy.types.Operator):
                         + '">\n'
                     )
                     for i, v in enumerate(V):
-                        test = visible(mes, v, "vert")
+                        test = visible(mes, v, "vertice")
                         if test[5]:
                             vis = True
                             dot = test[3]
                             # if wm.use_frontal and dot > 0:
                             # vis = False
                             if vis:
-                                if wm.algo_vert == "regular":
+                                if wm.algo_vert == "linear":
                                     r = round(wm.svg_scale * wm.diam1, dec)
-                                elif wm.algo_vert == "normales_dentro":
+                                elif wm.algo_vert == "normal_to_inside":
                                     r = round(wm.svg_scale * wm.diam1 * abs(dot), dec)
-                                elif wm.algo_vert == "normales_fuera":
+                                elif wm.algo_vert == "normal_to_outside":
                                     r = round(
                                         wm.svg_scale * wm.diam1 * (1 - abs(dot)), dec
                                     )
                                 else:
-                                    # algo: usar distancia sobre un eje
+                                    # algo: use distance on an axis
                                     if wm.ver_spa == "local":
                                         matriz = o.matrix_world.to_translation()
                                         z = abs(
@@ -756,13 +755,13 @@ class ExportSVG(bpy.types.Operator):
                                         z = abs(ver[v].co[int(wm.ver_axis)])
                                     r = round(wm.svg_scale * z * wm.diam1, dec)
 
-                                # dibujar vertices
+                                # draw vertices
                                 c = str_xy(ver[v].co)
                                 if r >= 1:
-                                    if wm.use_clon:
+                                    if wm.use_clone:
                                         output_file(
                                             '  <use xlink:href="#'
-                                            + clon
+                                            + clone
                                             + '" transform="translate('
                                             + c[2]
                                             + ") scale("
@@ -787,27 +786,27 @@ class ExportSVG(bpy.types.Operator):
                                         )
                     output_file("</g>\n\n")
 
-                # valor de paso por objeto
+                # step value per object
                 lev = len(ver)
                 if lev:
                     offset = R.randrange(0, lev)
                 extra = R.randrange(0, wm.curve_var + 1)
 
-                # TRAZO vertices -paso + variacion-
+                # path vertices -step + variation-
                 if wm.vert_conn and len(ver) > 1:
                     i = 1
                     off = offset
                     c = str_xy(ver[off].co)
                     if c[4]:
                         output_file(
-                            '<path id="trazo.'
+                            '<path id="path.'
                             + o.name
                             + '" d="M '
                             + c[0]
                             + ","
                             + c[1]
                             + " "
-                            + wm.curva
+                            + wm.curve
                             + " "
                         )
                         while i <= lev:  ####
@@ -821,7 +820,7 @@ class ExportSVG(bpy.types.Operator):
                             ' z" stroke="' + str_rgb(wm.col_5) + '" fill="none" />\n\n'
                         )
 
-                # NUMERAR vertices -paso + variacion-
+                # number vertices -step + variation-
                 if wm.use_num and len(ver) > 1:
                     i = 1
                     off = offset
@@ -851,8 +850,8 @@ class ExportSVG(bpy.types.Operator):
                             i += wm.curve_step + extra
                         output_file("</g>\n\n")
 
-                # salida EXTRA de bordes
-                if wm.extra_bordes != "nada":
+                # extra solid border
+                if wm.extra_bordes != "nothing":
                     edg = mes.edges
                     output_file(
                         '<g id="bordes.'
@@ -882,9 +881,9 @@ class ExportSVG(bpy.types.Operator):
                                         v1 += delta * wm.edg_displ
                                         v2 -= delta * wm.edg_displ
                                     if wm.edg_noise:
-                                        v1 += delta * (ruido(0, wm.edg_noise))
-                                        v2 -= delta * (ruido(0, wm.edg_noise))
-                                if wm.extra_bordes == "modular":
+                                        v1 += delta * (noise(0, wm.edg_noise))
+                                        v2 -= delta * (noise(0, wm.edg_noise))
+                                if wm.extra_bordes == "brush":
                                     w = wm.stroke_wid + le / 25
                                     v1 -= delta * w / 250
                                     v2 += delta * w / 250
@@ -907,14 +906,14 @@ class ExportSVG(bpy.types.Operator):
                                         + '" />\n'
                                     )
 
-                                elif wm.extra_bordes == "curvas":
+                                elif wm.extra_bordes == "curved_strokes":
                                     v3 = (
                                         v1
                                         - delta / 2
                                         + Vector(
                                             (
-                                                ruido(0, le * wm.cur_noise),
-                                                ruido(0, le * wm.cur_noise),
+                                                noise(0, le * wm.cur_noise),
+                                                noise(0, le * wm.cur_noise),
                                             )
                                         )
                                     )
@@ -939,9 +938,9 @@ class ExportSVG(bpy.types.Operator):
                                         + '" />\n'
                                     )
 
-                                elif wm.extra_bordes == "modular":
-                                    r1, r2 = Vector((ruido(0, w), ruido(0, w))), Vector(
-                                        (ruido(0, w), ruido(0, w))
+                                elif wm.extra_bordes == "brush":
+                                    r1, r2 = Vector((noise(0, w), noise(0, w))), Vector(
+                                        (noise(0, w), noise(0, w))
                                     )
                                     v3, v4 = v1 - delta / 2 + r1, v1 - delta / 2 + r2
                                     e, f = str(round(v3[0], dec)), str(
@@ -976,9 +975,9 @@ class ExportSVG(bpy.types.Operator):
                                         + '" />\n'
                                     )
 
-                                else:  # contorno
-                                    W = visible(mes, e.verts[0].index, "vert")[3]
-                                    W += visible(mes, e.verts[1].index, "vert")[3]
+                                else:  # outline
+                                    W = visible(mes, e.verts[0].index, "vertice")[3]
+                                    W += visible(mes, e.verts[1].index, "vertice")[3]
                                     W = 10 - round(abs(W * 5), dec)
                                     if W > wm.stroke_con * 9:
                                         output_file(
@@ -998,22 +997,20 @@ class ExportSVG(bpy.types.Operator):
 
                 output_file("</g>  <!-- end " + o.name + " -->\n\n")
 
-                # eliminar malla de la memoria
+                # release mesh memory
                 mes.free()
 
-            # superponer beziers
+            # overlap beziers
             if wm.use_bezier:
                 output_file(bez)
 
-            ## OPERACIONES A NIVEL OBJETOS >>
+            ## OBJECT LEVEL OPERATIONS >>
 
             OO = [str_xy(o.matrix_world.to_translation()) for o in sel_valid]
 
-            # origen como circulo / nombre
+            # origin as a circle / name
             if wm.use_origin:
-                output_file(
-                    '<g id="origen.Objetos" fill="' + str_rgb(wm.col_5) + '">\n'
-                )
+                output_file('<g id="object.origin" fill="' + str_rgb(wm.col_5) + '">\n')
                 for i, o in enumerate(sel_valid):
                     s = max(
                         0.5,
@@ -1035,7 +1032,7 @@ class ExportSVG(bpy.types.Operator):
                             + '" text-anchor="middle"'
                             + opa
                             + ' transform = "rotate('
-                            + str(round(ruido(0, s * 2)))
+                            + str(round(noise(0, s * 2)))
                             + ","
                             + c[2]
                             + ')" '
@@ -1072,23 +1069,23 @@ class ExportSVG(bpy.types.Operator):
                         )
                 output_file("</g>\n\n")
 
-            # TRAZO continuo objetos
+            # continuous line object
             if wm.obj_conn:
                 if len(OO) > 1:
                     for i, c in enumerate(OO[:-1]):
                         if i == 0:
                             output_file(
-                                '  <path id="conexion.Objetos" d="M '
+                                '  <path id="object.union" d="M '
                                 + c[0]
                                 + ","
                                 + c[1]
                                 + " "
-                                + wm.curva
+                                + wm.curve
                                 + " "
                             )
                         else:
                             output_file(c[2])
-                        if wm.curva != "L":
+                        if wm.curve != "L":
                             delta = OO[i + 1][3] - c[3]
                             le = round(delta.length) * 5
                             cc = (
@@ -1096,8 +1093,8 @@ class ExportSVG(bpy.types.Operator):
                                 + delta / 2
                                 + Vector(
                                     (
-                                        ruido(0, le * wm.cur_noise),
-                                        ruido(0, le * wm.cur_noise),
+                                        noise(0, le * wm.cur_noise),
+                                        noise(0, le * wm.cur_noise),
                                     )
                                 )
                             )
@@ -1109,10 +1106,10 @@ class ExportSVG(bpy.types.Operator):
                         + '" fill="none" />\n\n'
                     )
 
-            # dibujar jerarquias / relaciones entre objetos
+            # draw hierarchies / object relations
             if wm.obj_rel:
                 output_file(
-                    '<g id="relaciones" stroke="'
+                    '<g id="relations" stroke="'
                     + str_rgb(wm.col_5)
                     + '" fill="none">\n'
                 )
@@ -1158,11 +1155,11 @@ class IncrSVG(bpy.types.Operator):
 
     def execute(self, context):
         wm = bpy.context.window_manager
-        wm.use_continuar = True
+        wm.use_continue = True
         bpy.ops.export.svg()
-        if wm.use_continuar == False:
+        if wm.use_continue == False:
             self.report({"ERROR"}, "Can not append to this file")
-        wm.use_continuar = False
+        wm.use_continue = False
         bpy.ops.ed.undo()
         return {"FINISHED"}
 
@@ -1176,12 +1173,12 @@ class ComprSVG(bpy.types.Operator):
         import gzip
 
         wm = bpy.context.window_manager
-        if wm.ruta.endswith(".svg"):
-            svzruta = wm.ruta + "z"
+        if wm.route.endswith(".svg"):
+            svzroute = wm.route + "z"
             try:
-                with open(wm.ruta, "rb") as entrada:
-                    with gzip.open(svzruta, "wb") as salida:
-                        salida.writelines(entrada)
+                with open(wm.route, "rb") as entrada:
+                    with gzip.open(svzroute, "wb") as output:
+                        output.writelines(entrada)
             except:
                 self.report({"ERROR"}, "Verify the path")
         else:
@@ -1198,8 +1195,8 @@ class OpenSVG(bpy.types.Operator):
     def execute(self, context):
         wm = bpy.context.window_manager
         try:
-            bpy.ops.wm.url_open(url=wm.ruta)
-        # try: bpy.ops.wm.path_open(filepath=wm.ruta)
+            bpy.ops.wm.url_open(url=wm.route)
+        # try: bpy.ops.wm.path_open(filepath=wm.route)
         except:
             pass
         return {"FINISHED"}
@@ -1218,7 +1215,7 @@ class PanelSVG(bpy.types.Panel):
         split = column.split(align=True)
         split.operator("export.svg", text="Export SVG")
         split.operator("add_to.svg")
-        column.prop(wm, "ruta")
+        column.prop(wm, "route")
         split = column.split()
         split.operator("open.svg")
         split.operator("compress.svg")
@@ -1273,7 +1270,7 @@ class PanelSVG(bpy.types.Panel):
         der.prop(wm, "obj_rel")
         der.prop(wm, "vert_conn")
         der.prop(wm, "use_num")
-        der.prop(wm, "use_clon")
+        der.prop(wm, "use_clone")
         der.prop(wm, "use_bezier")
 
         column.separator()
@@ -1282,23 +1279,23 @@ class PanelSVG(bpy.types.Panel):
         split = column.split(align=True)
         split.prop(wm, "deci_type")
         if wm.deci_type == "DISSOLVE":
-            split.prop(wm, "disolver", slider=True)
+            split.prop(wm, "dissolver", slider=True)
         else:
-            split.prop(wm, "colapsar", slider=True)
+            split.prop(wm, "collapse", slider=True)
         row = column.row(align=True)
         row.prop(wm, "min_area", slider=True)
         row.prop(wm, "min_len", expand=True)
 
-        if wm.use_effect != "nada":
+        if wm.use_effect != "nothing":
             column.label(text="Effects:")
-            if wm.use_effect == "explotar":
+            if wm.use_effect == "explode":
                 row = column.row(align=True)
                 row.prop(wm, "fac_expl", slider=True)
                 row.prop(wm, "fac_noise", slider=True)
             else:
                 column.prop(wm, "shape_size", slider=True)
 
-        if wm.algo_edge != "nada":
+        if wm.algo_edge != "nothing":
             column.label(text="Edges:")
             split = column.split(factor=0.8, align=True)
             split.prop(wm, "edge_wid", slider=True)
@@ -1308,13 +1305,13 @@ class PanelSVG(bpy.types.Panel):
             column.label(text="Posterization:")
             column.prop(wm, "pos_step", slider=True)
 
-        if wm.algo_color == "patron":
+        if wm.algo_color == "pattern":
             column.label(text="Hatch Pattern:")
             split = column.split()
             split.prop(wm, "pat_sca", slider=True)
             split.prop(wm, "pat_col", slider=True)
 
-        if wm.extra_bordes != "nada":
+        if wm.extra_bordes != "nothing":
             column.label(text="Strokes:")
             column.prop(wm, "stroke_ang", slider=True)
             split = column.split(factor=0.8, align=True)
@@ -1324,12 +1321,12 @@ class PanelSVG(bpy.types.Panel):
                 split = column.split(align=True)
                 split.prop(wm, "edg_displ", slider=True)
                 split.prop(wm, "edg_noise", slider=True)
-            if wm.extra_bordes == "curvas":
+            if wm.extra_bordes == "curved_strokes":
                 column.prop(wm, "cur_noise", slider=True)
-            if wm.extra_bordes == "contorno":
+            if wm.extra_bordes == "countour":
                 column.prop(wm, "stroke_con", slider=True)
 
-        if wm.use_origin or wm.algo_vert != "nada":
+        if wm.use_origin or wm.algo_vert != "nothing":
             column.label(text="Objects | Verts:")
             if wm.use_origin:
                 column.prop(wm, "diam2", slider=True)
@@ -1340,9 +1337,9 @@ class PanelSVG(bpy.types.Panel):
                 der.prop(wm, "obj_x")
                 der.prop(wm, "obj_y")
                 der.prop(wm, "obj_z")
-            if wm.algo_vert != "nada":
+            if wm.algo_vert != "nothing":
                 column.prop(wm, "diam1", slider=True)
-                if wm.algo_vert == "eje":
+                if wm.algo_vert == "axis":
                     row = column.row(align=True)
                     row.prop(wm, "ver_axis", expand=True)
                     row.prop(wm, "ver_spa", expand=True)
@@ -1357,7 +1354,7 @@ class PanelSVG(bpy.types.Panel):
                 column.prop(wm, "fon_size", slider=True)
             if wm.vert_conn or wm.obj_conn:
                 row = column.row()
-                row.prop(wm, "curva", expand=True)
+                row.prop(wm, "curve", expand=True)
 
         column.label(text="Seed:")
         split = column.split(factor=0.35, align=True)
@@ -1367,13 +1364,13 @@ class PanelSVG(bpy.types.Panel):
         column.prop(wm, "render_range")
 
 
-bpy.types.WindowManager.ruta = bpy.props.StringProperty(
+bpy.types.WindowManager.route = bpy.props.StringProperty(
     name="",
     subtype="FILE_PATH",
     default="C:\\tmp\\algo.svg",
     description="Save the SVG file - use absolute path",
 )
-bpy.types.WindowManager.use_continuar = bpy.props.BoolProperty(
+bpy.types.WindowManager.use_continue = bpy.props.BoolProperty(
     name="Add to SVG", default=False, description="Adds geometry to the end of a file"
 )
 bpy.types.WindowManager.svg_scale = bpy.props.FloatProperty(
@@ -1389,87 +1386,87 @@ bpy.types.WindowManager.offset_y = bpy.props.IntProperty(
 bpy.types.WindowManager.algo_color = bpy.props.EnumProperty(
     name="Color",
     items=[
-        ("nada", "0. Nothing", "Skip from export"),
-        ("objetos", "1. Object: Random", "Variations on first color - use slider"),
-        ("caras", "3. Face: Random", "Variations on second color - use slider"),
-        ("pal_objetos", "2. Object: Palette", "Pick colors from palette"),
-        ("pal_caras", "4. Face: Palette", "Pick colors from palette"),
+        ("nothing", "0. Nothing", "Skip from export"),
+        ("object", "1. Object: Random", "Variations on first color - use slider"),
+        ("faces", "3. Face: Random", "Variations on second color - use slider"),
+        ("obj_pallete", "2. Object: Palette", "Pick colors from palette"),
+        ("face_pallete", "4. Face: Palette", "Pick colors from palette"),
         ("material", "5. Materials", "Diffuse color from Face Material"),
         ("indices", "6. Indices", "Based on face indices"),
         (
-            "patron",
+            "pattern",
             "7. Pattern",
             "Generate a hatching effect using third and second color",
         ),
     ],
     description="Base color for selected shapes",
-    default="objetos",
+    default="object",
 )
 bpy.types.WindowManager.algo_shade = bpy.props.EnumProperty(
     name="Shading",
     items=[
-        ("nada", "0. Nothing", "Skip from export"),
-        ("sombra_dentro", "1. Back Light", "Shading"),
-        ("sombra_fuera", "2. Front Light", "Sombreado"),
+        ("nothing", "0. Nothing", "Skip from export"),
+        ("back_light", "1. Back Light", "Shading"),
+        ("front_light", "2. Front Light", "Sombreado"),
         ("indices", "3. Indices", "Based on face indices"),
-        ("profundidad", "4. Depth", "Distance from camera -local space ramp-"),
-        ("suave", "5. Soft Shading", "Soft Shading"),
+        ("depth", "4. Depth", "Distance from camera -local space ramp-"),
+        ("soft_shading", "5. Soft Shading", "Soft Shading"),
         ("posterize", "6. Posterization", "Reduce the number of shade steps"),
-        ("prisma", "7. Color Ramp", "Displace hue based on angle"),
+        ("color_ramp", "7. Color Ramp", "Displace hue based on angle"),
         ("backfaces", "8. Backfacing", "Front / Back shading"),
     ],
     description="Shape shading - modifies the color",
-    default="suave",
+    default="soft_shading",
 )
 bpy.types.WindowManager.algo_edge = bpy.props.EnumProperty(
     name="Edges",
     items=[
-        ("nada", "0. Nothing", "Skip from export"),
-        ("regular", "1. Linear", "Regular Edges"),
-        ("rayas", "2. Dotted", "Dotted lines"),
+        ("nothing", "0. Nothing", "Skip from export"),
+        ("linear", "1. Linear", "Regular Edges"),
+        ("dashed", "2. Dotted", "Dotted lines"),
         (
-            "relleno",
+            "match_fill",
             "3. Match Fill",
             "Extend the fill to edges, helps on aliasing artifacts",
         ),
     ],
     description="Edges style on each face",
-    default="relleno",
+    default="match_fill",
 )
 bpy.types.WindowManager.extra_bordes = bpy.props.EnumProperty(
     name="Strokes",
     items=[
-        ("nada", "0. Nothing", "Skip from export"),
+        ("nothing", "0. Nothing", "Skip from export"),
         ("extender", "1. Extend Edges", "Extend the edges with some variations"),
-        ("curvas", "2. Curved Strokes", "Curved Strokes"),
-        ("contorno", "3. Contour", "Change width based on angle"),
-        ("modular", "4. Brush", "Modulate width along curve"),
+        ("curved_strokes", "2. Curved Strokes", "Curved Strokes"),
+        ("countour", "3. Contour", "Change width based on angle"),
+        ("brush", "4. Brush", "Modulate width along curve"),
     ],
     description="Export Strokes over shapes as a separate group",
-    default="nada",
+    default="nothing",
 )
 bpy.types.WindowManager.algo_vert = bpy.props.EnumProperty(
     name="Vertices",
     items=[
-        ("nada", "0. Nothing", "Skip from export"),
-        ("regular", "1. Constant", "Same size for all vertices"),
-        ("normales_dentro", "2. Inside", "Base diameter on normals"),
-        ("normales_fuera", "3. Outside", "Base diameter on normals"),
-        ("eje", "4. Use an Axis", "Base diameter on distance along an axis"),
+        ("nothing", "0. Nothing", "Skip from export"),
+        ("linear", "1. Constant", "Same size for all vertices"),
+        ("normal_to_inside", "2. Inside", "Base diameter on normals"),
+        ("normal_to_outside", "3. Outside", "Base diameter on normals"),
+        ("axis", "4. Use an Axis", "Base diameter on distance along an axis"),
     ],
     description="Export Vertices over shapes",
-    default="nada",
+    default="nothing",
 )
 bpy.types.WindowManager.use_effect = bpy.props.EnumProperty(
     name="Effects",
     items=[
-        ("nada", "0. Nothing", "Skip from export"),
-        ("explotar", "1. Explode", "Explode Faces"),
-        ("cuadrados", "2. Squares", "Faces as Squares"),
-        ("circulos", "3. Circles", "Faces as Circles"),
+        ("nothing", "0. Nothing", "Skip from export"),
+        ("explode", "1. Explode", "Explode Faces"),
+        ("squares", "2. Squares", "Faces as Squares"),
+        ("circles", "3. Circles", "Faces as Circles"),
     ],
     description="Distort faces for export",
-    default="nada",
+    default="nothing",
 )
 
 bpy.types.WindowManager.col_1 = bpy.props.FloatVectorProperty(
@@ -1564,7 +1561,7 @@ bpy.types.WindowManager.deci_type = bpy.props.EnumProperty(
     description="Simplify mesh before exporting",
     default="DISSOLVE",
 )
-bpy.types.WindowManager.disolver = bpy.props.FloatProperty(
+bpy.types.WindowManager.dissolver = bpy.props.FloatProperty(
     name="Dissolve Faces",
     subtype="ANGLE",
     min=0,
@@ -1572,7 +1569,7 @@ bpy.types.WindowManager.disolver = bpy.props.FloatProperty(
     default=0.08727,
     description="Simplify mesh before export",
 )
-bpy.types.WindowManager.colapsar = bpy.props.FloatProperty(
+bpy.types.WindowManager.collapse = bpy.props.FloatProperty(
     name="Collapse Edges",
     min=0.01,
     max=1,
@@ -1618,7 +1615,7 @@ bpy.types.WindowManager.use_num = bpy.props.BoolProperty(
     default=False,
     description="Show index Number for defined vertices",
 )
-bpy.types.WindowManager.use_clon = bpy.props.BoolProperty(
+bpy.types.WindowManager.use_clone = bpy.props.BoolProperty(
     name="Clones on Vertices",
     default=False,
     description="VERTICES: place instances of a symbol you can edit later in Inkscape",
@@ -1628,7 +1625,7 @@ bpy.types.WindowManager.use_expl = bpy.props.BoolProperty(
     default=False,
     description="Distort and add explode effect to Faces",
 )
-bpy.types.WindowManager.disolver = bpy.props.FloatProperty(
+bpy.types.WindowManager.dissolver = bpy.props.FloatProperty(
     name="Dissolve Faces",
     subtype="ANGLE",
     min=0,
@@ -1714,7 +1711,7 @@ bpy.types.WindowManager.ver_spa = bpy.props.EnumProperty(
     description="Vertex size from distance along axis",
     default="local",
 )
-bpy.types.WindowManager.curva = bpy.props.EnumProperty(
+bpy.types.WindowManager.curve = bpy.props.EnumProperty(
     name="Path",
     items=[
         ("L", "L", "Linear"),
