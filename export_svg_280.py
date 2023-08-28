@@ -12,6 +12,24 @@ import mathutils as M, random as R, bpy_extras
 from bpy_extras import view3d_utils as V3D
 from mathutils import Vector
 
+#####################################################################
+# SVG Format helpers
+#####################################################################
+
+
+# TagsAttributesTree
+class TAT_Tag:
+    def __init__(self, name):
+        self._name = name
+
+    def __str__(self) -> str:
+        return f"<{self._name} />"
+
+
+#####################################################################
+# Main content of plugin
+#####################################################################
+
 
 class ExportSVG(bpy.types.Operator):
     bl_idname = "export.svg"
