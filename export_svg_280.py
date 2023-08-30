@@ -21,9 +21,41 @@ from mathutils import Vector
 class TAT_Tag:
     def __init__(self, name):
         self._name = name
+        self._children = []
+        self._attributes = {}
+
+    def format_string(self, level, indent_size=1):
+        def space():
+            return " " * (level * indent_size)
+
+        formated_attributes = ""
+        if len(self._attributes) != 0:
+            formated_attributes = " " + " ".join(
+                [f'{n}="{v}"' for n, v in self._attributes.items()]
+            )
+
+        if len(self._children) == 0:
+            return f"{space()}<{self._name}{formated_attributes} />"
+
+        formated_children = [
+            c.format_string(level + 1, indent_size) for c in self._children
+        ]
+        return "\n".join(
+            [
+                f"{space()}<{self._name}{formated_attributes}>",
+                *formated_children,
+                f"{space()}</{self._name}>",
+            ]
+        )
 
     def __str__(self) -> str:
-        return f"<{self._name} />"
+        return self.format_string(0)
+
+    def add_tag(self, tag):
+        self._children.append(tag)
+
+    def add_attr(self, name, value):
+        self._attributes[name] = value
 
 
 #####################################################################
@@ -1667,9 +1699,10 @@ bpy.types.WindowManager.render_range = bpy.props.BoolProperty(
     description="Export animation as a sequence of SVG files",
 )
 
-
-classes = (ExportSVG, OpenSVG, IncrSVG, ComprSVG, PanelSVG)
-register, unregister = bpy.utils.register_classes_factory(classes)
+if __name__ == "__main__":
+    classes = (ExportSVG, OpenSVG, IncrSVG, ComprSVG, PanelSVG)
+    register, unregister = bpy.utils.register_classes_factory(classes)
+    register()
 
 
 if __name__ == "__main__":
