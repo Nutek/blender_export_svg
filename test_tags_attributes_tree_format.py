@@ -79,6 +79,13 @@ class TestTagsAttributeFormatMultipleAddition:
             '<root attr1="val1" attr2="val2" />',
         ]
 
+    def test_adding_multiple_attributes_by_map(self):
+        node = TAT_Node("root")
+        node.add_attrs(**{"name:attr1": "val1", "name:attr2": "val2"})
+        assert get_trimmed_lines(node) == [
+            '<root name:attr1="val1" name:attr2="val2" />',
+        ]
+
 
 class TestTagsAttributeFormatChaining:
     def test_adding_nodes_by_chaining(self):
