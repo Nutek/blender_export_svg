@@ -78,3 +78,31 @@ class TestTagsAttributeFormatMultipleAddition:
         assert get_trimmed_lines(node) == [
             '<root attr1="val1" attr2="val2" />',
         ]
+
+
+class TestTagsAttributeFormatChaining:
+    def test_adding_nodes_by_chaining(self):
+        node = (
+            TAT_Node("root")
+            .add_node(TAT_Node("inner1"))
+            .add_nodes(TAT_Node("inner2"))
+            .add_node(TAT_Node("inner3"))
+        )
+        assert get_trimmed_lines(node) == [
+            "<root>",
+            "<inner1 />",
+            "<inner2 />",
+            "<inner3 />",
+            "</root>",
+        ]
+
+    def test_adding_attributes_by_chaining(self):
+        node = (
+            TAT_Node("root")
+            .add_attr("attr1", "val1")
+            .add_attrs(attr2="val2")
+            .add_attr("attr3", "val3")
+        )
+        assert get_trimmed_lines(node) == [
+            '<root attr1="val1" attr2="val2" attr3="val3" />',
+        ]
