@@ -1703,7 +1703,3 @@ if __name__ == "__main__":
     classes = (ExportSVG, OpenSVG, IncrSVG, ComprSVG, PanelSVG)
     register, unregister = bpy.utils.register_classes_factory(classes)
     register()
-
-
-if __name__ == "__main__":
-    register()

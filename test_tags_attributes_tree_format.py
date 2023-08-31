@@ -1,9 +1,7 @@
 from export_svg_280 import *
 import pytest
 
-
-def get_trimmed_lines(obj):
-    return list(map(lambda s: s.strip(), str(obj).splitlines()))
+from test_helpers import *
 
 
 class TestBasicTagsAttributeFormat:
