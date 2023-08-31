@@ -9,7 +9,7 @@ class TestBasicTagsAttributeFormat:
         "input_name,expected", [("some_name", "<some_name />"), ("other", "<other />")]
     )
     def test_named_empty_element(self, input_name, expected):
-        tag = TAT_Tag(input_name)
+        tag = TAT_Node(input_name)
         assert get_trimmed_lines(tag) == [expected]
 
     @pytest.mark.parametrize(
@@ -24,7 +24,7 @@ class TestBasicTagsAttributeFormat:
         ],
     )
     def test_empty_element_with_attributes(self, attributes, expected):
-        tag = TAT_Tag("element")
+        tag = TAT_Node("element")
 
         for k, v in attributes.items():
             tag.add_attr(k, v)
@@ -34,14 +34,14 @@ class TestBasicTagsAttributeFormat:
 
 class TestTagsAttributeFormatNesting:
     def test_contains_empty_element(self):
-        tag = TAT_Tag("root")
-        tag.add_tag(TAT_Tag("inner"))
+        tag = TAT_Node("root")
+        tag.add_tag(TAT_Node("inner"))
         assert get_trimmed_lines(tag) == ["<root>", "<inner />", "</root>"]
 
     def test_contains_element_with_attributes(self):
-        inner = TAT_Tag("inner")
+        inner = TAT_Node("inner")
         inner.add_attr("my_attr", "my_value")
-        tag = TAT_Tag("root")
+        tag = TAT_Node("root")
         tag.add_tag(inner)
         assert get_trimmed_lines(tag) == [
             "<root>",
@@ -50,10 +50,10 @@ class TestTagsAttributeFormatNesting:
         ]
 
     def test_format_with_proper_indent(self):
-        tag = TAT_Tag("root")
-        tag.add_tag(TAT_Tag("inner"))
-        nested = TAT_Tag("nested")
-        nested.add_tag(TAT_Tag("inner"))
+        tag = TAT_Node("root")
+        tag.add_tag(TAT_Node("inner"))
+        nested = TAT_Node("nested")
+        nested.add_tag(TAT_Node("inner"))
         tag.add_tag(nested)
         assert (
             str(tag)

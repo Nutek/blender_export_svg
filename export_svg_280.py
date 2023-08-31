@@ -18,7 +18,7 @@ from mathutils import Vector
 
 
 # TagsAttributesTree
-class TAT_Tag:
+class TAT_Node:
     def __init__(self, name):
         self._name = name
         self._children = []
