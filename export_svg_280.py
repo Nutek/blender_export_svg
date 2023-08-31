@@ -18,8 +18,17 @@ from mathutils import Vector
 
 
 # TagsAttributesTree
-class TAT_Node:
+class TAT_Entity:
+    def format_string(self, level, indent_size=1):
+        return ""
+
+    def __str__(self):
+        return self.format_string(0)
+
+
+class TAT_Node(TAT_Entity):
     def __init__(self, name):
+        super().__init__()
         self._name = name
         self._children = []
         self._attributes = {}
@@ -48,9 +57,6 @@ class TAT_Node:
             ]
         )
 
-    def __str__(self) -> str:
-        return self.format_string(0)
-
     def add_node(self, tag):
         self._children.append(tag)
         return self
@@ -60,7 +66,7 @@ class TAT_Node:
             self.add_node(tag)
         return self
 
-    def add_attr(self, name, value):
+    def add_attr(self, name: str, value):
         self._attributes[name] = value
         return self
 
@@ -68,6 +74,18 @@ class TAT_Node:
         for name, value in attrs.items():
             self.add_attr(name, value)
         return self
+
+
+class TAT_Comment(TAT_Entity):
+    def __init__(self, content):
+        super().__init__()
+        self._content = content
+
+    def format_string(self, level, indent_size=1):
+        def space():
+            return " " * (level * indent_size)
+
+        return f"{space()}<!-- {self._content} -->"
 
 
 #####################################################################

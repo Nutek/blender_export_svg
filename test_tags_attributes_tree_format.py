@@ -31,6 +31,17 @@ class TestBasicTagsAttributeFormat:
 
         assert get_trimmed_lines(node) == expected
 
+    @pytest.mark.parametrize(
+        "label,expected",
+        [
+            ("comment", ["<!-- comment -->"]),
+            ("other text", ["<!-- other text -->"]),
+        ],
+    )
+    def test_some_comment(self, label, expected):
+        node = TAT_Comment(label)
+        assert get_trimmed_lines(node) == expected
+
 
 class TestTagsAttributeFormatNesting:
     def test_contains_empty_element(self):
@@ -54,10 +65,11 @@ class TestTagsAttributeFormatNesting:
         node.add_node(TAT_Node("inner"))
         nested = TAT_Node("nested")
         nested.add_node(TAT_Node("inner"))
+        nested.add_node(TAT_Comment("text"))
         node.add_node(nested)
         assert (
             str(node)
-            == "<root>\n <inner />\n <nested>\n  <inner />\n </nested>\n</root>"
+            == "<root>\n <inner />\n <nested>\n  <inner />\n  <!-- text -->\n </nested>\n</root>"
         )
 
 
