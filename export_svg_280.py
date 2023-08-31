@@ -51,11 +51,19 @@ class TAT_Node:
     def __str__(self) -> str:
         return self.format_string(0)
 
-    def add_tag(self, tag):
+    def add_node(self, tag):
         self._children.append(tag)
+
+    def add_nodes(self, *tags):
+        for tag in tags:
+            self.add_node(tag)
 
     def add_attr(self, name, value):
         self._attributes[name] = value
+
+    def add_attrs(self, **attrs):
+        for name, value in attrs.items():
+            self.add_attr(name, value)
 
 
 #####################################################################

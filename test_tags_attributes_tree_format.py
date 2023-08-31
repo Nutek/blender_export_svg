@@ -9,8 +9,8 @@ class TestBasicTagsAttributeFormat:
         "input_name,expected", [("some_name", "<some_name />"), ("other", "<other />")]
     )
     def test_named_empty_element(self, input_name, expected):
-        tag = TAT_Node(input_name)
-        assert get_trimmed_lines(tag) == [expected]
+        node = TAT_Node(input_name)
+        assert get_trimmed_lines(node) == [expected]
 
     @pytest.mark.parametrize(
         "attributes,expected",
@@ -24,38 +24,57 @@ class TestBasicTagsAttributeFormat:
         ],
     )
     def test_empty_element_with_attributes(self, attributes, expected):
-        tag = TAT_Node("element")
+        node = TAT_Node("element")
 
         for k, v in attributes.items():
-            tag.add_attr(k, v)
+            node.add_attr(k, v)
 
-        assert get_trimmed_lines(tag) == expected
+        assert get_trimmed_lines(node) == expected
 
 
 class TestTagsAttributeFormatNesting:
     def test_contains_empty_element(self):
-        tag = TAT_Node("root")
-        tag.add_tag(TAT_Node("inner"))
-        assert get_trimmed_lines(tag) == ["<root>", "<inner />", "</root>"]
+        node = TAT_Node("root")
+        node.add_node(TAT_Node("inner"))
+        assert get_trimmed_lines(node) == ["<root>", "<inner />", "</root>"]
 
     def test_contains_element_with_attributes(self):
         inner = TAT_Node("inner")
         inner.add_attr("my_attr", "my_value")
-        tag = TAT_Node("root")
-        tag.add_tag(inner)
-        assert get_trimmed_lines(tag) == [
+        node = TAT_Node("root")
+        node.add_node(inner)
+        assert get_trimmed_lines(node) == [
             "<root>",
             '<inner my_attr="my_value" />',
             "</root>",
         ]
 
     def test_format_with_proper_indent(self):
-        tag = TAT_Node("root")
-        tag.add_tag(TAT_Node("inner"))
+        node = TAT_Node("root")
+        node.add_node(TAT_Node("inner"))
         nested = TAT_Node("nested")
-        nested.add_tag(TAT_Node("inner"))
-        tag.add_tag(nested)
+        nested.add_node(TAT_Node("inner"))
+        node.add_node(nested)
         assert (
-            str(tag)
+            str(node)
             == "<root>\n <inner />\n <nested>\n  <inner />\n </nested>\n</root>"
         )
+
+
+class TestTagsAttributeFormatMultipleAddition:
+    def test_adding_multiple_nodes(self):
+        node = TAT_Node("root")
+        node.add_nodes(TAT_Node("inner1"), TAT_Node("inner2"))
+        assert get_trimmed_lines(node) == [
+            "<root>",
+            "<inner1 />",
+            "<inner2 />",
+            "</root>",
+        ]
+
+    def test_adding_multiple_attributes(self):
+        node = TAT_Node("root")
+        node.add_attrs(attr1="val1", attr2="val2")
+        assert get_trimmed_lines(node) == [
+            '<root attr1="val1" attr2="val2" />',
+        ]
