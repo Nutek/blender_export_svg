@@ -17,13 +17,30 @@ from mathutils import Vector
 #####################################################################
 
 
-# TagsAttributesTree
-class TAT_Entity:
-    def format_string(self, level, indent_size=1):
-        return ""
+# Spacer
+class Spacer:
+    def __init__(self, level, indent_size=1):
+        self._level = level
+        self._indent_size = indent_size
 
     def __str__(self):
-        return self.format_string(0)
+        return " " * (self._level * self._indent_size)
+
+    def __add__(self, diff: int):
+        return Spacer(self._level + diff, self._indent_size)
+
+
+# TagsAttributesTree
+class TAT_Defaults:
+    spacer = Spacer(0, 1)
+
+
+class TAT_Entity:
+    def format_string(self, spacer: Spacer = TAT_Defaults.spacer):
+        return str(spacer)
+
+    def __str__(self):
+        return self.format_string()
 
 
 class TAT_Node(TAT_Entity):
@@ -33,10 +50,7 @@ class TAT_Node(TAT_Entity):
         self._children = []
         self._attributes = {}
 
-    def format_string(self, level, indent_size=1):
-        def space():
-            return " " * (level * indent_size)
-
+    def format_string(self, spacer: Spacer = Spacer(0, 1)):
         formated_attributes = ""
         if len(self._attributes) != 0:
             formated_attributes = " " + " ".join(
@@ -44,16 +58,14 @@ class TAT_Node(TAT_Entity):
             )
 
         if len(self._children) == 0:
-            return f"{space()}<{self._name}{formated_attributes} />"
+            return f"{spacer}<{self._name}{formated_attributes} />"
 
-        formated_children = [
-            c.format_string(level + 1, indent_size) for c in self._children
-        ]
+        formated_children = [c.format_string(spacer + 1) for c in self._children]
         return "\n".join(
             [
-                f"{space()}<{self._name}{formated_attributes}>",
+                f"{spacer}<{self._name}{formated_attributes}>",
                 *formated_children,
-                f"{space()}</{self._name}>",
+                f"{spacer}</{self._name}>",
             ]
         )
 
@@ -81,11 +93,8 @@ class TAT_Comment(TAT_Entity):
         super().__init__()
         self._content = content
 
-    def format_string(self, level, indent_size=1):
-        def space():
-            return " " * (level * indent_size)
-
-        return f"{space()}<!-- {self._content} -->"
+    def format_string(self, spacer: Spacer = Spacer(0, 1)):
+        return f"{spacer}<!-- {self._content} -->"
 
 
 #####################################################################
