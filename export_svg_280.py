@@ -111,21 +111,39 @@ class TAT_Comment(TAT_Entity):
         return f"{spacer}<!-- {self._content} -->"
 
 
-class SVG_Document:
+# SVG Components
+class SVG_Entity:
+    def __init__(self, raw_content: TAT_Entity = TAT_Entity()):
+        self._raw_content = raw_content
+
+    def export(self):
+        return self._raw_content
+
+
+class SVG_Document(SVG_Entity):
     def __init__(self, width: int, height: int):
+        super().__init__()
         self._width = width
         self._height = height
+        self._components = []
 
     def export(self) -> TAT_Entity:
-        return TAT_Node("svg").add_attrs(
-            **{
-                "xmlns": "http://www.w3.org/2000/svg",
-                "xmlns:inkscape": "http://www.inkscape.org/namespaces/inkscape",
-                "xmlns:xlink": "http://www.w3.org/1999/xlink",
-            },
-            width=f"{self._width}px",
-            height=f"{self._height}px",
+        return (
+            TAT_Node("svg")
+            .add_attrs(
+                **{
+                    "xmlns": "http://www.w3.org/2000/svg",
+                    "xmlns:inkscape": "http://www.inkscape.org/namespaces/inkscape",
+                    "xmlns:xlink": "http://www.w3.org/1999/xlink",
+                },
+                width=f"{self._width}px",
+                height=f"{self._height}px",
+            )
+            .add_nodes(*[c.export() for c in self._components])
         )
+
+    def add(self, entity: SVG_Entity):
+        self._components.append(entity)
 
     def __str__(self) -> str:
         return f"{self.export()}\n"
@@ -343,10 +361,10 @@ class ExportSVG(bpy.types.Operator):
             svg_doc = SVG_Document(sce.render.resolution_x, sce.render.resolution_y)
             # open file for writing
             with open(output_file_path, "w") as output_file:
+                svg_doc.add(SVG_Entity(TAT_Comment("new blender session")))
                 # if wm.use_continue:
                 #     for nl in data[:-3]:
                 #         output_file(nl)
-                #     output_file("\n\n<!-- new blender session -->\n\n\n")
                 # else:
                 #  # Refactored
                 #     pass
