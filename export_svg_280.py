@@ -10,9 +10,11 @@ bl_info = {
 import bpy, bmesh, os, math, time
 import mathutils as M, random as R, bpy_extras
 import itertools
+import operator
 from bpy_extras import view3d_utils as V3D
 from mathutils import Vector
 from collections.abc import Iterable
+
 
 #####################################################################
 # General helpers
@@ -132,18 +134,23 @@ class SVG_Entity:
         return f"{self.export()}\n"
 
 
-class SVG_Group(SVG_Entity):
-    def __init__(self, properties: dict = {}):
+class SVG_Element(SVG_Entity):
+    def __init__(self, name: str, properties: dict = {}):
         super().__init__()
+        self._name = name
         self._properties = properties
+
+    def export(self) -> TAT_Entity:
+        return TAT_Node(self._name).add_attrs(**self._properties)
+
+
+class SVG_Group(SVG_Element):
+    def __init__(self, properties: dict = {}, name="g"):
+        super().__init__(name, properties)
         self._components = []
 
     def export(self) -> TAT_Entity:
-        return (
-            TAT_Node("g")
-            .add_attrs(**self._properties)
-            .add_nodes(*[c.export() for c in self._components])
-        )
+        return super().export().add_nodes(*[c.export() for c in self._components])
 
     def add(self, entity: SVG_Entity):
         self._components.append(entity)
@@ -152,13 +159,14 @@ class SVG_Group(SVG_Entity):
 class SVG_Document(SVG_Group):
     def __init__(self, width: int, height: int):
         super().__init__(
-            {
+            name="svg",
+            properties={
                 "xmlns": "http://www.w3.org/2000/svg",
                 "xmlns:inkscape": "http://www.inkscape.org/namespaces/inkscape",
                 "xmlns:xlink": "http://www.w3.org/1999/xlink",
                 "width": f"{width}px",
                 "height": f"{height}px",
-            }
+            },
         )
         self._components = []
 
@@ -188,10 +196,10 @@ class ExportSVG(bpy.types.Operator):
         output_file_path = bpy.path.abspath(wm.route)
 
         selected_objects = bpy.context.selected_objects
+        center = (region.width / 2, region.height / 2)
+        camera_coordinates = V3D.region_2d_to_origin_3d(region, region3d, center)
 
         # col = M.Color((0, 0, 0))
-        # center = (region.width / 2, region.height / 2)
-        # cam_co = V3D.region_2d_to_origin_3d(region, region3d, center)
 
         # # use a plane named 'bisect' to cut meshes
         # if wm.bisect in sce.objects:
@@ -217,38 +225,39 @@ class ExportSVG(bpy.types.Operator):
             slide_x = slide_y = 0
 
         def visible(mes, indice, type):
-            # if hasattr(mes.verts, "ensure_lookup_table"):
-            #     mes.verts.ensure_lookup_table()
-            #     mes.faces.ensure_lookup_table()
+            if hasattr(mes.verts, "ensure_lookup_table"):
+                mes.verts.ensure_lookup_table()
+                mes.faces.ensure_lookup_table()
 
-            # if type == "face":
-            #     val = mes.faces[indice].calc_center_median()
-            #     coo = V3D.location_3d_to_region_2d(region, region3d, val)
-            #     if not coo:
-            #         return (0, 0, 0, 0, 0, False)
-            #     for v in mes.faces[indice].verts:
-            #         if not V3D.location_3d_to_region_2d(
-            #             region, region3d, mes.verts[v.index].co
-            #         ):
-            #             return (0, 0, 0, 0, 0, False)
-            #     ojo = V3D.region_2d_to_vector_3d(region, region3d, coo).normalized()
-            #     dot = mes.faces[indice].normal.dot(ojo)
-            #     if orto:
-            #         dis = M.geometry.distance_point_to_plane(val, cam_co, ojo)
-            #         dot = -dot
-            #     else:
-            #         dis = (cam_co - val).length
-            # elif type == "vertice":
-            #     v = mes.verts[indice]
-            #     val = v.co
-            #     coo = V3D.location_3d_to_region_2d(region, region3d, val)
-            #     if not coo:
-            #         return (0, 0, 0, 0, 0, False)
-            #     ojo = V3D.region_2d_to_vector_3d(region, region3d, coo)
-            #     dot = mes.verts[indice].normal.dot(ojo)
-            #     dis = (cam_co - val).length
-            # return (val, coo, ojo, dot, dis, True)
-            pass
+            if type == "face":
+                val = mes.faces[indice].calc_center_median()
+                coo = V3D.location_3d_to_region_2d(region, region3d, val)
+                if not coo:
+                    return (0, 0, 0, 0, 0, False)
+                for v in mes.faces[indice].verts:
+                    if not V3D.location_3d_to_region_2d(
+                        region, region3d, mes.verts[v.index].co
+                    ):
+                        return (0, 0, 0, 0, 0, False)
+                ojo = V3D.region_2d_to_vector_3d(region, region3d, coo).normalized()
+                dot = mes.faces[indice].normal.dot(ojo)
+                if orto:
+                    dis = M.geometry.distance_point_to_plane(
+                        val, camera_coordinates, ojo
+                    )
+                    dot = -dot
+                else:
+                    dis = (camera_coordinates - val).length
+            elif type == "vertice":
+                v = mes.verts[indice]
+                val = v.co
+                coo = V3D.location_3d_to_region_2d(region, region3d, val)
+                if not coo:
+                    return (0, 0, 0, 0, 0, False)
+                ojo = V3D.region_2d_to_vector_3d(region, region3d, coo)
+                dot = mes.verts[indice].normal.dot(ojo)
+                dis = (camera_coordinates - val).length
+            return (val, coo, ojo, dot, dis, True)
 
         # 3d coordinate to 2d coordinate
         def v3d_to_v2d(v3d):
@@ -258,17 +267,16 @@ class ExportSVG(bpy.types.Operator):
         def str_xy(
             coo3D, esc=svg_sca, xxx=wm.offset_x + slide_x, yyy=wm.offset_y + slide_y
         ):
-            # coo = V3D.location_3d_to_region_2d(region, region3d, coo3D)
-            # if not coo:
-            #     return (0, 0, 0, 0, False)
-            # x = round(coo[0] * esc + xxx, ExportSVG.precision)
-            # if orto:
-            #     y = round((-region.height + coo[1]) * -esc + yyy, ExportSVG.precision)
-            # else:
-            #     y = round((region.height - coo[1]) * esc + yyy, ExportSVG.precision)
-            # return (str(x), str(y), str(x) + "," + str(y) + " ", Vector((x, y)), True)
-            # # str x - str y - str x,y - vector x,y - valido
-            pass
+            coo = V3D.location_3d_to_region_2d(region, region3d, coo3D)
+            if not coo:
+                return (0, 0, 0, 0, False)
+            x = round(coo[0] * esc + xxx, ExportSVG.precision)
+            if orto:
+                y = round((-region.height + coo[1]) * -esc + yyy, ExportSVG.precision)
+            else:
+                y = round((region.height - coo[1]) * esc + yyy, ExportSVG.precision)
+            return (str(x), str(y), str(x) + "," + str(y) + " ", Vector((x, y)), True)
+            # str x - str y - str x,y - vector x,y - valido
 
         def vcol(col, r=0.25):
             # ncol = col.copy()
@@ -279,10 +287,9 @@ class ExportSVG(bpy.types.Operator):
             pass
 
         def str_rgb(vector):
-            # r, g, b = vector[0], vector[1], vector[2]
-            # color = "rgb(%s,%s,%s)" % (round(r * 255), round(g * 255), round(b * 255))
-            # return color
-            pass
+            r, g, b = vector[0], vector[1], vector[2]
+            color = "rgb(%s,%s,%s)" % (round(r * 255), round(g * 255), round(b * 255))
+            return color
 
         def render_line(obj):
             mode_curve, mode_bezier = False, False
@@ -293,7 +300,7 @@ class ExportSVG(bpy.types.Operator):
                     and obj.data.extrude < 0.001
                 ):
                     mode_curve = True
-                if "BEZIER" in [s.type for s in o.data.splines]:
+                if "BEZIER" in [s.type for s in obj.data.splines]:
                     mode_bezier = True
             return (mode_curve, mode_bezier)
 
@@ -483,7 +490,15 @@ class ExportSVG(bpy.types.Operator):
                 #     bez = ""
 
                 # mesh loop
-                for obj in grouped_objects.get(ObjectTypes.Mesh, []):
+                print(grouped_objects)
+                types_to_get = [
+                    ObjectTypes.Mesh,
+                    ObjectTypes.Curve,
+                    ObjectTypes.Surface,
+                ]
+                for obj in itertools.chain(
+                    *list(map(lambda key: grouped_objects.get(key, []), types_to_get))
+                ):
                     # convert objects + mesh modifiers
                     line = render_line(obj)
                     mesh = object_2_bmesh(context, obj, line)
@@ -494,139 +509,143 @@ class ExportSVG(bpy.types.Operator):
                     object_group.add(SVG_Entity(TAT_Comment(f"start {obj.name}")))
                     layer.add(object_group)
 
-                #     # draw a curve in the SVG
-                #     if line[0]:
-                #         I = [str_xy(v.co) for v in mes.verts]
-                #         V = [v for v in I if v[4]]
-                #         if len(V) > 1:
-                #             output_file(
-                #                 f'  <path id="curva_3D.{o.name}" d="M {V[0][0]},{V[0][1]} L '
-                #             )
-                #             for c in V:
-                #                 output_file(c[2])
-                #             output_file(
-                #                 f'" stroke="{str_rgb(wm.col_5)}" stroke-width="{str(round(wm.stroke_wid, 2))}" stroke-linecap="round" fill="none" />\n\n'
-                #             )
+                    # draw a curve in the SVG
+                    if line[0]:
+                        I = [str_xy(v.co) for v in mesh.verts]
+                        V = [v for v in I if v[4]]
+                        if len(V) > 1:
+                            points = " ".join(
+                                [f"M {V[0][0]},{V[0][1]} L", *[c[2] for c in V]]
+                            )
+                            props = {
+                                "id": f"curve_3D.{obj.name}",
+                                "stroke": str_rgb(wm.col_5),
+                                "stroke-width": str(round(wm.stroke_wid, 2)),
+                                "stroke-linecap": "round",
+                                "fill": "none",
+                                "d": points,
+                            }
+                            object_group.add(SVG_Element("path", props))
 
-                #     # overlap beziers
-                #     if wm.use_bezier and line[1]:
-                #         if not line[0]:
-                #             I = [str_xy(v.co) for v in mes.verts]
-                #             V = [v for v in I if v[4]]
-                #         if len(V) > 1:
-                #             cur = o.data.copy()
-                #             cur.transform(o.matrix_world)
-                #             for spline in cur.splines:
-                #                 if spline.type == "BEZIER":
-                #                     bp = spline.bezier_points
-                #                     bez += (
-                #                         ' <path stroke="black" opacity=".5" fill="none" d="'
-                #                     )
-                #                     bez += "M" + str_xy(bp[0].co)[2]
-                #                     nodos = [
-                #                         (
-                #                             bp[i - 1].handle_right,
-                #                             bp[i].handle_left,
-                #                             bp[i].co,
-                #                         )
-                #                         for i in range(1, len(bp))
-                #                     ]
-                #                     for v in nodos:
-                #                         bez += (
-                #                             "C"
-                #                             + str_xy(v[0])[2]
-                #                             + str_xy(v[1])[2]
-                #                             + str_xy(v[2])[2]
-                #                         )
-                #                     if spline.use_cyclic_u:
-                #                         bez += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
-                #                     bez += '" />\n'
-                #             bpy.data.curves.remove(cur)
+                    #     # overlap beziers
+                    #     if wm.use_bezier and line[1]:
+                    #         if not line[0]:
+                    #             I = [str_xy(v.co) for v in mesh.verts]
+                    #             V = [v for v in I if v[4]]
+                    #         if len(V) > 1:
+                    #             cur = obj.data.copy()
+                    #             cur.transform(obj.matrix_world)
+                    #             for spline in cur.splines:
+                    #                 if spline.type == "BEZIER":
+                    #                     bp = spline.bezier_points
+                    #                     bez += ' <path stroke="black" opacity=".5" fill="none" d="'
+                    #                     bez += "M" + str_xy(bp[0].co)[2]
+                    #                     nodos = [
+                    #                         (
+                    #                             bp[i - 1].handle_right,
+                    #                             bp[i].handle_left,
+                    #                             bp[i].co,
+                    #                         )
+                    #                         for i in range(1, len(bp))
+                    #                     ]
+                    #                     for v in nodos:
+                    #                         bez += (
+                    #                             "C"
+                    #                             + str_xy(v[0])[2]
+                    #                             + str_xy(v[1])[2]
+                    #                             + str_xy(v[2])[2]
+                    #                         )
+                    #                     if spline.use_cyclic_u:
+                    #                         bez += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
+                    #                     bez += '" />\n'
+                    #             bpy.data.curves.remove(cur)
 
-                #     # gather info for the faces
-                #     FF = {}
-                #     for i, f in enumerate(mes.faces):
-                #         FF[i] = visible(
-                #             mes, i, "face"
-                #         )  # 3D - 2D - vector view - product - distance - valid
+                    # gather info for the faces
+                    FF = {}
+                    for i, f in enumerate(mesh.faces):
+                        FF[i] = visible(
+                            mesh, i, "face"
+                        )  # 3D - 2D - vector view - product - distance - valid
 
-                #     # list of visible faces
-                #     S = wm.use_select - 1
+                    # list of visible faces
+                    S = wm.use_select - 1
 
-                #     if wm.use_frontal:
-                #         P = [
-                #             k
-                #             for k in FF.keys()
-                #             if mes.faces[k].select > S
-                #             and FF[k][5]
-                #             and mes.faces[k].calc_area() > wm.min_area
-                #             and FF[k][3] < 0
-                #         ]
-                #     else:
-                #         P = [
-                #             k
-                #             for k in FF.keys()
-                #             if mes.faces[k].select > S
-                #             if FF[k][5] and mes.faces[k].calc_area() > wm.min_area
-                #         ]
+                    if wm.use_frontal:
+                        P = [
+                            k
+                            for k in FF.keys()
+                            if mesh.faces[k].select > S
+                            and FF[k][5]
+                            and mesh.faces[k].calc_area() > wm.min_area
+                            and FF[k][3] < 0
+                        ]
+                    else:
+                        P = [
+                            k
+                            for k in FF.keys()
+                            if mesh.faces[k].select > S
+                            if FF[k][5] and mesh.faces[k].calc_area() > wm.min_area
+                        ]
 
-                #     # list of vertices in visible faces ####
-                #     I = []
-                #     for k in P:
-                #         I.append([v.index for v in mes.faces[k].verts])
-                #     V = list(set([v for f in I for v in f]))
+                    # list of vertices in visible faces ####
+                    I = []
+                    for k in P:
+                        I.append([v.index for v in mesh.faces[k].verts])
+                    V = list(set([v for f in I for v in f]))
 
-                #     # gather info for vertices on visible faces
-                #     QQ = {}  # str x - str y - str x,y - vector x,y - valid
-                #     for v in V:
-                #         QQ[v] = str_xy(ver[v].co)
+                    # gather info for vertices on visible faces
+                    QQ = {}  # str x - str y - str x,y - vector x,y - valid
+                    for v in V:
+                        QQ[v] = str_xy(verts[v].co)
 
-                #     # order the faces according to distance to the viewer -use centroid-
-                #     distance = [(round(FF[f][4], ExportSVG.precision), f) for f in P]
-                #     if orto:
-                #         distance.sort()
-                #     else:
-                #         distance.sort(reverse=True)
-                #     P = [d[1] for d in distance]
+                    # order the faces according to distance to the viewer -use centroid-
+                    distance = [(round(FF[f][4], ExportSVG.precision), f) for f in P]
+                    if orto:
+                        distance.sort()
+                    else:
+                        distance.sort(reverse=True)
+                    P = [d[1] for d in distance]
 
-                #     # remove vertices inside faces with 3 or 4 edges -see extend to ngons-
-                #     if wm.use_occ:
-                #         if wm.extra_bordes != "nothing" or wm.algo_vert != "nothing":
-                #             for c in P:
-                #                 if mes.faces[c].calc_area() > wm.min_area * 10:
-                #                     pv = mes.faces[c].verts
-                #                     for v in V:
-                #                         if len(pv) == 3:
-                #                             q = M.geometry.intersect_point_tri_2d(
-                #                                 QQ[v][3],
-                #                                 QQ[pv[0].index][3],
-                #                                 QQ[pv[1].index][3],
-                #                                 QQ[pv[2].index][3],
-                #                             )
-                #                         else:
-                #                             q = M.geometry.intersect_point_quad_2d(
-                #                                 QQ[v][3],
-                #                                 QQ[pv[0].index][3],
-                #                                 QQ[pv[1].index][3],
-                #                                 QQ[pv[2].index][3],
-                #                                 QQ[pv[3].index][3],
-                #                             )
-                #                         if q and v in V:
-                #                             if (cam_co - ver[v].co) > (cam_co - FF[c][0]):
-                #                                 V.remove(v)
+                    # remove vertices inside faces with 3 or 4 edges -see extend to ngons-
+                    if wm.use_occ:
+                        if wm.extra_bordes != "nothing" or wm.algo_vert != "nothing":
+                            for c in P:
+                                if mesh.faces[c].calc_area() > wm.min_area * 10:
+                                    pv = mesh.faces[c].verts
+                                    for v in V:
+                                        if len(pv) == 3:
+                                            q = M.geometry.intersect_point_tri_2d(
+                                                QQ[v][3],
+                                                QQ[pv[0].index][3],
+                                                QQ[pv[1].index][3],
+                                                QQ[pv[2].index][3],
+                                            )
+                                        else:
+                                            q = M.geometry.intersect_point_quad_2d(
+                                                QQ[v][3],
+                                                QQ[pv[0].index][3],
+                                                QQ[pv[1].index][3],
+                                                QQ[pv[2].index][3],
+                                                QQ[pv[3].index][3],
+                                            )
+                                        if q and v in V:
+                                            if (camera_coordinates - verts[v].co) > (
+                                                camera_coordinates - FF[c][0]
+                                            ):
+                                                V.remove(v)
 
-                #     # fill faces & trace edges
-                #     if P and (
-                #         wm.algo_color != "nothing"
-                #         or wm.algo_edge != "nothing"
-                #         or wm.algo_shade == "nothing"
-                #     ):
-                #         # border width
-                #         w = ""
-                #         stroke = ""
-                #         if wm.algo_edge != "nothing":
-                #             if wm.edge_wid:
-                #                 w = f' stroke-width="{str(wm.edge_wid)}px" stroke-linejoin="{wm.edge_join}" stroke-linecap="round"'
+                    # fill faces & trace edges
+                    if P and (
+                        wm.algo_color != "nothing"
+                        or wm.algo_edge != "nothing"
+                        or wm.algo_shade == "nothing"
+                    ):
+                        # border width
+                        w = ""
+                        stroke = ""
+                        if wm.algo_edge != "nothing":
+                            if wm.edge_wid:
+                                w = f' stroke-width="{str(wm.edge_wid)}px" stroke-linejoin="{wm.edge_join}" stroke-linecap="round"'
 
                 #         # border style
                 #         output_file(f'<g id="face_edges.{o.name}"{w}')
