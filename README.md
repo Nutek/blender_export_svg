@@ -47,6 +47,11 @@ You are free to propose changes as a PR.
 6. Each time when you change script you need to execute it.
 7. Play with plugin in Blender and provide changes to script. Repeat from point 4.
 
+Useful tools:
+
+- [Blender Add-on: Python Debugger](https://github.com/hextantstudios/hextant_python_debugger)
+- [Debugpy VSCode Plugin](https://github.com/microsoft/vscode-python-debugger)
+
 ## You found an issue?
 
 Rise a ticket with label `bug`. Better description of problem increase chance to solve an issue.
