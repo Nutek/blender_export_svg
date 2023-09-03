@@ -1113,6 +1113,7 @@ class PanelSVG(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "SVG"
+    bl_idname = "OBJECT_PT_PanelSVG"
 
     def draw(self, context):
         wm = bpy.context.window_manager
