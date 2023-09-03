@@ -13,6 +13,7 @@ import itertools
 from bpy_extras import view3d_utils as V3D
 from mathutils import Vector
 from collections.abc import Iterable
+from enum import Enum
 
 #####################################################################
 # General helpers
@@ -25,6 +26,14 @@ def frames_with_file_path(frame_numbers: Iterable, output_path: str):
     for frame_number in frame_numbers:
         frame_number_str = str(int(frame_number)).zfill(fill_size)
         yield (frame_number, f"{basename_path}_{frame_number_str}{extension}")
+
+
+class MeshTypes(Enum):
+    Mesh = "MESH"
+    Curve = "CURVE"
+    Font = "FONT"
+    Surface = "SURFACE"
+    Meta = "META"
 
 
 #####################################################################
@@ -446,13 +455,8 @@ class ExportSVG(bpy.types.Operator):
                     )
                 }
 
-                # sel = [
-                #     o
-                #     for o in sel_valid
-                #     if o.type in {"MESH", "CURVE", "FONT", "SURFACE", "META"}
-                # ]
-                # if not sel:
-                #     self.report({"ERROR"}, "No selected objects..!")
+                if len(grouped_objects) == 0:
+                    self.report({"ERROR"}, f"No selected objects for frame {frame}!")
 
                 # # unite all objects into a single mesh
                 # if wm.join_objs and len(sel) > 1:
