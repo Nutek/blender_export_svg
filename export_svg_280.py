@@ -13,7 +13,6 @@ import itertools
 from bpy_extras import view3d_utils as V3D
 from mathutils import Vector
 from collections.abc import Iterable
-from enum import Enum
 
 #####################################################################
 # General helpers
@@ -28,7 +27,7 @@ def frames_with_file_path(frame_numbers: Iterable, output_path: str):
         yield (frame_number, f"{basename_path}_{frame_number_str}{extension}")
 
 
-class MeshTypes(Enum):
+class ObjectTypes:
     Mesh = "MESH"
     Curve = "CURVE"
     Font = "FONT"
@@ -129,42 +128,39 @@ class SVG_Entity:
     def export(self):
         return self._raw_content
 
+    def __str__(self) -> str:
+        return f"{self.export()}\n"
+
 
 class SVG_Group(SVG_Entity):
     def __init__(self, properties: dict = {}):
-        self._properties = properties
-
-    def export(self) -> TAT_Entity:
-        return TAT_Node("g").add_attrs(**self._properties)
-
-
-class SVG_Document(SVG_Entity):
-    def __init__(self, width: int, height: int):
         super().__init__()
-        self._width = width
-        self._height = height
+        self._properties = properties
         self._components = []
 
     def export(self) -> TAT_Entity:
         return (
-            TAT_Node("svg")
-            .add_attrs(
-                **{
-                    "xmlns": "http://www.w3.org/2000/svg",
-                    "xmlns:inkscape": "http://www.inkscape.org/namespaces/inkscape",
-                    "xmlns:xlink": "http://www.w3.org/1999/xlink",
-                },
-                width=f"{self._width}px",
-                height=f"{self._height}px",
-            )
+            TAT_Node("g")
+            .add_attrs(**self._properties)
             .add_nodes(*[c.export() for c in self._components])
         )
 
     def add(self, entity: SVG_Entity):
         self._components.append(entity)
 
-    def __str__(self) -> str:
-        return f"{self.export()}\n"
+
+class SVG_Document(SVG_Group):
+    def __init__(self, width: int, height: int):
+        super().__init__(
+            {
+                "xmlns": "http://www.w3.org/2000/svg",
+                "xmlns:inkscape": "http://www.inkscape.org/namespaces/inkscape",
+                "xmlns:xlink": "http://www.w3.org/1999/xlink",
+                "width": f"{width}px",
+                "height": f"{height}px",
+            }
+        )
+        self._components = []
 
 
 #####################################################################
@@ -289,47 +285,47 @@ class ExportSVG(bpy.types.Operator):
             pass
 
         def render_line(obj):
-            # mode_curve, mode_bezier = False, False
-            # if obj.type == "CURVE":
-            #     if (
-            #         not o.data.bevel_object
-            #         and o.data.bevel_depth < 0.001
-            #         and o.data.extrude < 0.001
-            #     ):
-            #         mode_curve = True
-            #     if "BEZIER" in [s.type for s in o.data.splines]:
-            #         mode_bezier = True
-            # return (mode_curve, mode_bezier)
-            pass
+            mode_curve, mode_bezier = False, False
+            if obj.type == "CURVE":
+                if (
+                    not obj.data.bevel_object
+                    and obj.data.bevel_depth < 0.001
+                    and obj.data.extrude < 0.001
+                ):
+                    mode_curve = True
+                if "BEZIER" in [s.type for s in o.data.splines]:
+                    mode_bezier = True
+            return (mode_curve, mode_bezier)
 
-        def object_2_bm(context, obj, bm, convert=False):
-            # if convert:
-            #     depsgraph = bpy.context.evaluated_depsgraph_get()  ###
-            #     tmp = bpy.data.meshes.new_from_object(obj.evaluated_get(depsgraph))  ###
-            #     tmp.transform(obj.matrix_world)
-            #     bm.from_mesh(tmp)
-            #     bpy.data.meshes.remove(tmp)
-            # else:
-            #     if wm.dissolver or wm.collapse < 1:
-            #         mod = obj.modifiers.new("mod", "DECIMATE")  ###
-            #         mod.decimate_type = wm.deci_type
-            #         if wm.deci_type == "DISSOLVE":
-            #             mod.angle_limit = wm.dissolver
-            #             mod.use_dissolve_boundaries = False
-            #         else:
-            #             mod.ratio = wm.collapse
-            #     if obj.type == "MESH":
-            #         bm.from_object(obj, context.depsgraph)
-            #         bm.transform(obj.matrix_world)
-            #     else:
-            #         tmp = obj.to_mesh(depsgraph=context.depsgraph)  ###
-            #         # tmp = obj.to_mesh(context.depsgraph, apply_modifiers=True) ###
-            #         tmp.transform(obj.matrix_world)
-            #         bm.from_mesh(tmp)
-            #         bpy.data.meshes.remove(tmp)
+        def object_2_bmesh(context, obj, convert=False):
+            mesh = bmesh.new()
 
-            #     if wm.dissolver or wm.collapse < 1:
-            #         obj.modifiers.remove(mod)
+            if convert:
+                depsgraph = bpy.context.evaluated_depsgraph_get()
+                tmp = bpy.data.meshes.new_from_object(obj.evaluated_get(depsgraph))
+                tmp.transform(obj.matrix_world)
+                mesh.from_mesh(tmp)
+                bpy.data.meshes.remove(tmp)
+            else:
+                if wm.dissolver or wm.collapse < 1:
+                    mod = obj.modifiers.new("mod", "DECIMATE")
+                    mod.decimate_type = wm.deci_type
+                    if wm.deci_type == "DISSOLVE":
+                        mod.angle_limit = wm.dissolver
+                        mod.use_dissolve_boundaries = False
+                    else:
+                        mod.ratio = wm.collapse
+                if obj.type == ObjectTypes.Mesh:
+                    mesh.from_object(obj, context.depsgraph)
+                    mesh.transform(obj.matrix_world)
+                else:
+                    tmp = obj.to_mesh(depsgraph=context.depsgraph)
+                    tmp.transform(obj.matrix_world)
+                    mesh.from_mesh(tmp)
+                    bpy.data.meshes.remove(tmp)
+
+                if wm.dissolver or wm.collapse < 1:
+                    obj.modifiers.remove(mod)
 
             # # use a plane named 'bisect' to cut meshes
             # if bis:
@@ -342,8 +338,7 @@ class ExportSVG(bpy.types.Operator):
             #     )
 
             # bm.normal_update()
-            # return bm
-            pass
+            return mesh
 
         if wm.render_range == True:
             frame_list = frames_with_file_path(
@@ -487,15 +482,17 @@ class ExportSVG(bpy.types.Operator):
                 # if wm.use_bezier:
                 #     bez = ""
 
-                # # mesh loop
-                # for o in sel:
-                #     # convert objects + mesh modifiers
-                #     mes = bmesh.new()
-                #     line = render_line(o)
-                #     object_2_bm(context, o, mes, line)
-                #     ver = mes.verts
+                # mesh loop
+                for obj in grouped_objects.get(ObjectTypes.Mesh, []):
+                    # convert objects + mesh modifiers
+                    line = render_line(obj)
+                    mesh = object_2_bmesh(context, obj, line)
+                    verts = mesh.verts
 
-                #     output_file(f'<g id="{o.name}">  <!-- start {o.name} -->\n\n')
+                    object_group = SVG_Group({"id": obj.name})
+
+                    object_group.add(SVG_Entity(TAT_Comment(f"start {obj.name}")))
+                    layer.add(object_group)
 
                 #     # draw a curve in the SVG
                 #     if line[0]:
