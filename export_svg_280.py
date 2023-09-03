@@ -120,6 +120,14 @@ class SVG_Entity:
         return self._raw_content
 
 
+class SVG_Group(SVG_Entity):
+    def __init__(self, properties: dict = {}):
+        self._properties = properties
+
+    def export(self) -> TAT_Entity:
+        return TAT_Node("g").add_attrs(**self._properties)
+
+
 class SVG_Document(SVG_Entity):
     def __init__(self, width: int, height: int):
         super().__init__()
@@ -359,6 +367,9 @@ class ExportSVG(bpy.types.Operator):
             #         return {"FINISHED"}
 
             svg_doc = SVG_Document(sce.render.resolution_x, sce.render.resolution_y)
+            properties_for_all_objects = {
+                "opacity": str(round(wm.col_opacity, ExportSVG.precision))
+            }
             # open file for writing
             with open(output_file_path, "w") as output_file:
                 svg_doc.add(SVG_Entity(TAT_Comment("new blender session")))
@@ -369,18 +380,11 @@ class ExportSVG(bpy.types.Operator):
                 #  # Refactored
                 #     pass
 
-                # # new inkscape layer
-                # output_file(
-                #     f'<g inkscape:groupmode="layer" id="{str(time.asctime())}">\n\n'
-                # )
-
-                # # opacity value
-                # if wm.col_opacity < 1:
-                #     opa = (
-                #         ' opacity="' + str(round(wm.col_opacity, ExportSVG.precision)) + '"'
-                #     )
-                # else:
-                #     opa = ""
+                # new inkscape layer
+                layer = SVG_Group(
+                    {"inkscape:groupmode": "layer", "id": str(time.asctime())}
+                )
+                svg_doc.add(layer)
 
                 # # object to clone
                 # if wm.algo_vert != "nothing" and wm.use_clone:
