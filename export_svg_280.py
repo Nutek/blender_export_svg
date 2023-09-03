@@ -1,6 +1,6 @@
 bl_info = {
     "name": "Viewport to SVG",
-    "version": (0, 2, 1, 3),
+    "version": (0, 2, 1, 4),
     "blender": (2, 80, 0),
     "location": "View3D > Sidebar",
     "description": "Generate an SVG file from active view",
@@ -109,6 +109,26 @@ class TAT_Comment(TAT_Entity):
 
     def format_string(self, spacer: Spacer = Spacer(0, 1)):
         return f"{spacer}<!-- {self._content} -->"
+
+
+class SVG_Document:
+    def __init__(self, width: int, height: int):
+        self._width = width
+        self._height = height
+
+    def export(self) -> TAT_Entity:
+        return TAT_Node("svg").add_attrs(
+            **{
+                "xmlns": "http://www.w3.org/2000/svg",
+                "xmlns:inkscape": "http://www.inkscape.org/namespaces/inkscape",
+                "xmlns:xlink": "http://www.w3.org/1999/xlink",
+            },
+            width=f"{self._width}px",
+            height=f"{self._height}px",
+        )
+
+    def __str__(self) -> str:
+        return f"{self.export()}\n"
 
 
 #####################################################################
@@ -320,739 +340,735 @@ class ExportSVG(bpy.types.Operator):
             #         wm.use_continue = False
             #         return {"FINISHED"}
 
-            # # open file for writing
-            # output_file = open(new_path, "w").write
-            # if wm.use_continue:
-            #     for nl in data[:-3]:
-            #         output_file(nl)
-            #     output_file("\n\n<!-- new blender session -->\n\n\n")
-            # else:
-            #     x = str(sce.render.resolution_x)
-            #     y = str(sce.render.resolution_y)
-            #     output_file(
-            #         '<svg xmlns="http://www.w3.org/2000/svg"'
-            #         + ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
-            #         + ' xmlns:xlink="http://www.w3.org/1999/xlink"'
-            #         + f' width="{x}px" height="{y}px">\n\n'
-            #     )
-
-            # # new inkscape layer
-            # output_file(
-            #     f'<g inkscape:groupmode="layer" id="{str(time.asctime())}">\n\n'
-            # )
-
-            # # opacity value
-            # if wm.col_opacity < 1:
-            #     opa = (
-            #         ' opacity="' + str(round(wm.col_opacity, ExportSVG.precision)) + '"'
-            #     )
-            # else:
-            #     opa = ""
-
-            # # object to clone
-            # if wm.algo_vert != "nothing" and wm.use_clone:
-            #     clone = "X_" + str(R.choice(list(range(999))))
-            #     output_file(
-            #         f'<g id="{clone}" stroke-width="2"{opa} stroke="{str_rgb(wm.col_4)}">'
-            #         + '\n  <line x1="-10" y1="0" x2="10" y2="0" /><line x1="0" y1="10" x2="0" y2="-10" />\n</g>\n\n'
-            #     )
-
-            # # patrones de dashed
-            # if wm.algo_color == "pattern":
-            #     ran = str(R.randint(0, 999))
-            #     if wm.pat_col:
-            #         fondo = "none"
-            #     else:
-            #         fondo = str_rgb(wm.col_2)
-            #     output_file(
-            #         f'<g id="stripe{ran}">'
-            #         + f'<rect fill="{fondo}" x="0" y="0" height="10" width="1" />'
-            #         + f'<rect fill="{str_rgb(wm.col_3)}" x="0" y="0" height="2" width="1" />'
-            #         + "</g>\n\n<defs>\n"
-            #     )
-            #     c = [2.5, 3.5, 5, 7, 10]
-            #     for i in range(5):
-            #         output_file(
-            #             f'<pattern id="pat_{ran}_{str(i)}" patternUnits="userSpaceOnUse" width="1" '
-            #             + f'height="{str(c[i])}" patternTransform="rotate({str(R.randrange(-45, 45))}) scale({str(wm.pat_sca)})">'
-            #             + f'<use xlink:href="#stripe{ran}" />'
-            #             + "</pattern>\n"
-            #         )
-            #     output_file("</defs>\n\n")
-
-            # ## OPERATIONS AT MESH LEVEL >>
-
-            # # remove object with invalid coordinates
-            # sel_valid = [o for o in sel if str_xy(o.matrix_world.to_translation())[4]]
-
-            # # sort objects by distance to viewer -usa object origin-
-            # if wm.order_obj:
-            #     distance = [
-            #         (round((cam_co - o.location).length_squared, 5), o.name)
-            #         for o in sel_valid
-            #     ]
-            #     distance.sort(reverse=True)
-            #     sel_valid = [sce.objects[d[1]] for d in distance]
-
-            # sel = [
-            #     o
-            #     for o in sel_valid
-            #     if o.type in {"MESH", "CURVE", "FONT", "SURFACE", "META"}
-            # ]
-            # if not sel:
-            #     self.report({"ERROR"}, "No selected objects..!")
-
-            # # unite all objects into a single mesh
-            # if wm.join_objs and len(sel) > 1:
-            #     bpy.ops.object.select_all(action="DESELECT")
-
-            #     for i, o in enumerate(sel):
-            #         depsgraph = bpy.context.evaluated_depsgraph_get()  ###
-            #         tmp = bpy.data.meshes.new_from_object(o.evaluated_get(depsgraph))
-            #         tmp.transform(o.matrix_world)  ###
-
-            #         if not i:
-            #             join = bpy.data.objects.new("join", tmp)  ###
-            #             sce.collection.objects.link(join)
-            #         else:
-            #             add = bpy.data.objects.new("add", tmp)
-            #             sce.collection.objects.link(add)
-            #             add.select_set(True)
-            #             join.select_set(True)
-            #             context.view_layer.objects.active = join  ###
-            #             bpy.ops.object.join()
-            #             try:
-            #                 bpy.data.meshes.remove(tmp)  ###
-            #             except:
-            #                 pass
-            #     sel = [join]
-
-            # # overlap beziers
-            # if wm.use_bezier:
-            #     bez = ""
-
-            # # mesh loop
-            # for o in sel:
-            #     # convert objects + mesh modifiers
-            #     mes = bmesh.new()
-            #     line = render_line(o)
-            #     object_2_bm(context, o, mes, line)
-            #     ver = mes.verts
-
-            #     output_file(f'<g id="{o.name}">  <!-- start {o.name} -->\n\n')
-
-            #     # draw a curve in the SVG
-            #     if line[0]:
-            #         I = [str_xy(v.co) for v in mes.verts]
-            #         V = [v for v in I if v[4]]
-            #         if len(V) > 1:
-            #             output_file(
-            #                 f'  <path id="curva_3D.{o.name}" d="M {V[0][0]},{V[0][1]} L '
-            #             )
-            #             for c in V:
-            #                 output_file(c[2])
-            #             output_file(
-            #                 f'" stroke="{str_rgb(wm.col_5)}" stroke-width="{str(round(wm.stroke_wid, 2))}" stroke-linecap="round" fill="none" />\n\n'
-            #             )
-
-            #     # overlap beziers
-            #     if wm.use_bezier and line[1]:
-            #         if not line[0]:
-            #             I = [str_xy(v.co) for v in mes.verts]
-            #             V = [v for v in I if v[4]]
-            #         if len(V) > 1:
-            #             cur = o.data.copy()
-            #             cur.transform(o.matrix_world)
-            #             for spline in cur.splines:
-            #                 if spline.type == "BEZIER":
-            #                     bp = spline.bezier_points
-            #                     bez += (
-            #                         ' <path stroke="black" opacity=".5" fill="none" d="'
-            #                     )
-            #                     bez += "M" + str_xy(bp[0].co)[2]
-            #                     nodos = [
-            #                         (
-            #                             bp[i - 1].handle_right,
-            #                             bp[i].handle_left,
-            #                             bp[i].co,
-            #                         )
-            #                         for i in range(1, len(bp))
-            #                     ]
-            #                     for v in nodos:
-            #                         bez += (
-            #                             "C"
-            #                             + str_xy(v[0])[2]
-            #                             + str_xy(v[1])[2]
-            #                             + str_xy(v[2])[2]
-            #                         )
-            #                     if spline.use_cyclic_u:
-            #                         bez += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
-            #                     bez += '" />\n'
-            #             bpy.data.curves.remove(cur)
-
-            #     # gather info for the faces
-            #     FF = {}
-            #     for i, f in enumerate(mes.faces):
-            #         FF[i] = visible(
-            #             mes, i, "face"
-            #         )  # 3D - 2D - vector view - product - distance - valid
-
-            #     # list of visible faces
-            #     S = wm.use_select - 1
-
-            #     if wm.use_frontal:
-            #         P = [
-            #             k
-            #             for k in FF.keys()
-            #             if mes.faces[k].select > S
-            #             and FF[k][5]
-            #             and mes.faces[k].calc_area() > wm.min_area
-            #             and FF[k][3] < 0
-            #         ]
-            #     else:
-            #         P = [
-            #             k
-            #             for k in FF.keys()
-            #             if mes.faces[k].select > S
-            #             if FF[k][5] and mes.faces[k].calc_area() > wm.min_area
-            #         ]
-
-            #     # list of vertices in visible faces ####
-            #     I = []
-            #     for k in P:
-            #         I.append([v.index for v in mes.faces[k].verts])
-            #     V = list(set([v for f in I for v in f]))
-
-            #     # gather info for vertices on visible faces
-            #     QQ = {}  # str x - str y - str x,y - vector x,y - valid
-            #     for v in V:
-            #         QQ[v] = str_xy(ver[v].co)
-
-            #     # order the faces according to distance to the viewer -use centroid-
-            #     distance = [(round(FF[f][4], ExportSVG.precision), f) for f in P]
-            #     if orto:
-            #         distance.sort()
-            #     else:
-            #         distance.sort(reverse=True)
-            #     P = [d[1] for d in distance]
-
-            #     # remove vertices inside faces with 3 or 4 edges -see extend to ngons-
-            #     if wm.use_occ:
-            #         if wm.extra_bordes != "nothing" or wm.algo_vert != "nothing":
-            #             for c in P:
-            #                 if mes.faces[c].calc_area() > wm.min_area * 10:
-            #                     pv = mes.faces[c].verts
-            #                     for v in V:
-            #                         if len(pv) == 3:
-            #                             q = M.geometry.intersect_point_tri_2d(
-            #                                 QQ[v][3],
-            #                                 QQ[pv[0].index][3],
-            #                                 QQ[pv[1].index][3],
-            #                                 QQ[pv[2].index][3],
-            #                             )
-            #                         else:
-            #                             q = M.geometry.intersect_point_quad_2d(
-            #                                 QQ[v][3],
-            #                                 QQ[pv[0].index][3],
-            #                                 QQ[pv[1].index][3],
-            #                                 QQ[pv[2].index][3],
-            #                                 QQ[pv[3].index][3],
-            #                             )
-            #                         if q and v in V:
-            #                             if (cam_co - ver[v].co) > (cam_co - FF[c][0]):
-            #                                 V.remove(v)
-
-            #     # fill faces & trace edges
-            #     if P and (
-            #         wm.algo_color != "nothing"
-            #         or wm.algo_edge != "nothing"
-            #         or wm.algo_shade == "nothing"
-            #     ):
-            #         # border width
-            #         w = ""
-            #         stroke = ""
-            #         if wm.algo_edge != "nothing":
-            #             if wm.edge_wid:
-            #                 w = f' stroke-width="{str(wm.edge_wid)}px" stroke-linejoin="{wm.edge_join}" stroke-linecap="round"'
-
-            #         # border style
-            #         output_file(f'<g id="face_edges.{o.name}"{w}')
-            #         if wm.algo_edge == "linear":
-            #             output_file(' stroke="' + str_rgb(wm.col_3) + '">\n')
-            #         elif wm.algo_edge == "dashed":
-            #             u = str(1 + 3 * wm.edge_wid) + "," + str(1 + 1.5 * wm.edge_wid)
-            #             output_file(
-            #                 f' stroke="{str_rgb(wm.col_3)}" stroke-dasharray="{u}">\n'
-            #             )
-            #         else:
-            #             output_file(">\n")
-
-            #         # calculate step depth
-            #         if wm.algo_shade == "depth" or wm.use_effect == "explode":
-            #             if len(P):
-            #                 range_value = (
-            #                     abs((distance[0][0] - distance[-1][0])) + 1e-05
-            #                 )
-            #             else:
-            #                 range_value = 0.5
-            #             # if wm.algo_shade == 'depth':
-            #             # col = vcol(wm.col_1, wm.col_noise)
-
-            #         # object color
-
-            #         if wm.algo_color == "object":
-            #             colobj = vcol(wm.col_1, wm.col_noise)
-
-            #         elif wm.algo_color == "obj_pallete":
-            #             colobj = R.choice(
-            #                 [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
-            #             )
-
-            #         # loop faces ------------------------------------------------------>
-
-            #         for i, f in enumerate(P):
-            #             if wm.algo_shade == "depth" or wm.use_effect == "explode":
-            #                 dis = (distance[0][0] - distance[i][0]) / range_value
-
-            #             # apply color by faces
-
-            #             if wm.algo_color == "object" or wm.algo_color == "obj_pallete":
-            #                 col = colobj
-
-            #             elif wm.algo_color == "faces":
-            #                 col = vcol(wm.col_2, 0.01 + wm.col_noise / 2)
-
-            #             elif wm.algo_color == "face_pallete":
-            #                 col = R.choice(
-            #                     [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
-            #                 )
-
-            #             elif wm.algo_color == "material":
-            #                 sl = mes.faces[f].material_index
-            #                 if o.material_slots and o.material_slots[sl].name:
-            #                     col = M.Color(
-            #                         o.material_slots[sl].material.diffuse_color[:-1]
-            #                     )
-            #                     col = vcol(col, wm.col_noise)
-            #                 else:
-            #                     col = wm.col_1
-
-            #             elif wm.algo_color == "indices":
-            #                 val = round(f / len(mes.faces), ExportSVG.precision)
-            #                 col.r = 1 - val
-            #                 col.g = col.b = val
-
-            #             elif wm.algo_color == "pattern":
-            #                 n = int(5.25 * abs(FF[f][3]) - 0.5)
-            #                 if n > 4:
-            #                     fill = fondo
-            #                 else:
-            #                     fill = "url(#pat_" + ran + "_" + str(n) + ")"
-
-            #             # aplicar sombreado
-
-            #             copiacol = col.copy()
-
-            #             if wm.algo_shade == "back_light":
-            #                 dot = abs(FF[f][3])
-            #                 copiacol.v = max(1 - dot, 0.001)
-            #                 copiacol.s *= dot
-
-            #             elif wm.algo_shade == "front_light":
-            #                 dot = abs(FF[f][3])
-            #                 copiacol.v = dot
-            #                 copiacol.s *= 1 - dot
-
-            #             elif wm.algo_shade == "indices":
-            #                 val = round(f / len(mes.faces), ExportSVG.precision)
-            #                 copiacol.v = 1 - val
-            #                 copiacol.s = 0.75 - val / 2
-
-            #             elif wm.algo_shade == "color_ramp":
-            #                 dot = abs(FF[f][3])
-            #                 copiacol.v = dot
-            #                 copiacol.h = math.modf(copiacol.h + dot)[0]
-
-            #             elif wm.algo_shade == "soft_shading":
-            #                 dot = abs(FF[f][3])
-            #                 copiacol.v = dot
-
-            #             elif wm.algo_shade == "posterize":
-            #                 dot = round(abs(FF[f][3]) * wm.pos_step)
-            #                 copiacol.v = dot / wm.pos_step
-
-            #             elif wm.algo_shade == "depth":
-            #                 copiacol.v = dis
-            #                 copiacol.s = dis * col.s
-
-            #             elif wm.algo_shade == "backfaces":
-            #                 dot = (FF[f][3]) < 0
-            #                 copiacol.v = 0.5 * dot + 0.25
-
-            #             if wm.algo_color != "pattern":
-            #                 fill = str_rgb(copiacol)
-
-            #             if wm.algo_color == "nothing":
-            #                 fill = "none"
-
-            #             # edge per face
-            #             if wm.algo_color != "nothing" or wm.algo_shade == "pattern":
-            #                 if wm.algo_edge == "match_fill":
-            #                     stroke = f' stroke="{fill}"'
-
-            #             # draw the vertices of the faces
-            #             if wm.use_effect == "nothing" or wm.use_effect == "explode":
-            #                 output_file(f'  <polygon{stroke} fill="{fill}" points="')
-            #                 for v in mes.faces[f].verts:
-            #                     if wm.use_effect == "explode":
-            #                         m = Vector(
-            #                             (
-            #                                 noise(0, wm.fac_noise),
-            #                                 noise(0, wm.fac_noise),
-            #                                 (noise(0, wm.fac_noise)),
-            #                             )
-            #                         )
-            #                         test = str_xy(ver[v.index].co + m / 50)
-            #                         if test[4]:
-            #                             output_file(test[2])
-            #                     else:
-            #                         output_file(str(QQ[v.index][2]))
-
-            #                 if wm.use_effect == "explode":
-            #                     try:
-            #                         m = (
-            #                             str(FF[i][1][0])
-            #                             + ","
-            #                             + str(-FF[i][1][1] + region.height)
-            #                         )
-            #                     except:
-            #                         m = "0,0"
-            #                     output_file(
-            #                         f'"{opa} transform="rotate({str(dis * noise(0, wm.fac_expl))},{m})" />\n'
-            #                     )
-            #                 else:
-            #                     output_file(f'" {opa} />\n')
-
-            #             else:
-            #                 dot = abs(FF[f][3])
-            #                 delta = FF[f][4]
-            #                 a = math.sqrt(mes.faces[f].calc_area())
-            #                 l = (
-            #                     a
-            #                     * dot
-            #                     * 100
-            #                     * wm.shape_size
-            #                     / delta
-            #                     * wm.svg_scale
-            #                     / (1 + 25 * orto)
-            #                 )  ####
-            #                 xy = str_xy(FF[f][0])
-            #                 x = float(xy[0])
-            #                 y = float(xy[1])
-
-            #                 if wm.use_effect == "circles" and l > 1:
-            #                     output_file(
-            #                         f'  <circle cx="{x}" cy="{y}" r="{l}" {stroke} fill="{fill}" {opa} />\n'
-            #                     )
-
-            #                 if wm.use_effect == "squares" and l > 1:
-            #                     output_file(
-            #                         f'  <rect x="{x - l}" y="{y - l}" width="{l * 2}" height="{l * 2}" {stroke} fill="{fill}" {opa} />\n'
-            #                     )
-
-            #         output_file("</g>\n\n")
-
-            #     # draw vertices as circles / clones
-            #     if wm.algo_vert != "nothing":
-            #         output_file(
-            #             f'<g id="vertices.{o.name}" fill="{str_rgb(wm.col_4)}">\n'
-            #         )
-            #         for i, v in enumerate(V):
-            #             test = visible(mes, v, "vertice")
-            #             if test[5]:
-            #                 vis = True
-            #                 dot = test[3]
-            #                 # if wm.use_frontal and dot > 0:
-            #                 # vis = False
-            #                 if vis:
-            #                     if wm.algo_vert == "linear":
-            #                         r = round(
-            #                             wm.svg_scale * wm.diam1, ExportSVG.precision
-            #                         )
-            #                     elif wm.algo_vert == "normal_to_inside":
-            #                         r = round(
-            #                             wm.svg_scale * wm.diam1 * abs(dot),
-            #                             ExportSVG.precision,
-            #                         )
-            #                     elif wm.algo_vert == "normal_to_outside":
-            #                         r = round(
-            #                             wm.svg_scale * wm.diam1 * (1 - abs(dot)),
-            #                             ExportSVG.precision,
-            #                         )
-            #                     else:
-            #                         # algo: use distance on an axis
-            #                         if wm.ver_spa == "local":
-            #                             matriz = o.matrix_world.to_translation()
-            #                             z = abs(
-            #                                 ver[v].co[int(wm.ver_axis)]
-            #                                 - matriz[int(wm.ver_axis)]
-            #                             )
-            #                         else:
-            #                             z = abs(ver[v].co[int(wm.ver_axis)])
-            #                         r = round(
-            #                             wm.svg_scale * z * wm.diam1, ExportSVG.precision
-            #                         )
-
-            #                     # draw vertices
-            #                     c = str_xy(ver[v].co)
-            #                     if r >= 1:
-            #                         if wm.use_clone:
-            #                             output_file(
-            #                                 f'  <use xlink:href="#{clone}"'
-            #                                 + f' transform="translate({c[2]})'
-            #                                 + f" scale({str(round(r / 10, ExportSVG.precision))},{str(round(r / 10, ExportSVG.precision))})"
-            #                                 + f' rotate({str(round(R.random() * 360))})" />\n'
-            #                             )
-            #                         else:
-            #                             output_file(
-            #                                 f'  <circle cx="{c[0]}" cy="{c[1]}" r="{str(r / 2)}"{opa} />\n'
-            #                             )
-            #         output_file("</g>\n\n")
-
-            #     # step value per object
-            #     lev = len(ver)
-            #     if lev:
-            #         offset = R.randrange(0, lev)
-            #     extra = R.randrange(0, wm.curve_var + 1)
-
-            #     # path vertices -step + variation-
-            #     if wm.vert_conn and len(ver) > 1:
-            #         i = 1
-            #         off = offset
-            #         c = str_xy(ver[off].co)
-            #         if c[4]:
-            #             output_file(
-            #                 f'<path id="path.{o.name}" d="M {c[0]},{c[1]} {wm.curve} '
-            #             )
-            #             while i <= lev:  ####
-            #                 if i + off >= lev:
-            #                     off -= lev
-            #                 c = str_xy(ver[i + off].co)
-            #                 if c[4]:
-            #                     output_file(c[2])
-            #                 i += wm.curve_step + extra
-            #             output_file(
-            #                 f' z" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
-            #             )
-
-            #     # number vertices -step + variation-
-            #     if wm.use_num and len(ver) > 1:
-            #         i = 1
-            #         off = offset
-            #         c = str_xy(ver[off].co)
-            #         if c[4]:
-            #             output_file(
-            #                 '<g id="indices.'
-            #                 + o.name
-            #                 + '" font-size="'
-            #                 + str(wm.fon_size)
-            #                 + '" text-anchor="middle">\n'
-            #             )
-            #             while i <= lev:  ####
-            #                 if i + off >= lev:
-            #                     off -= lev
-            #                 c = str_xy(ver[i + off].co)
-            #                 if c[4]:
-            #                     output_file(
-            #                         f'  <text x="{c[0]}" y="{c[1]}">{str(i)}</text>\n'
-            #                     )
-            #                 i += wm.curve_step + extra
-            #             output_file("</g>\n\n")
-
-            #     # extra solid border
-            #     if wm.extra_bordes != "nothing":
-            #         edg = mes.edges
-            #         output_file(
-            #             f'<g id="bordes.{o.name}" stroke="{str_rgb(wm.col_6)}" stroke-linecap="round" fill="none">\n'
-            #         )
-
-            #         for e in edg:
-            #             vis = True
-            #             if e.verts[0].index not in V or e.verts[1].index not in V:
-            #                 vis = False
-            #             if wm.use_boundary:
-            #                 vis = e.is_boundary
-            #             if vis:
-            #                 vis = e.calc_face_angle(1.5708) > wm.stroke_ang
-            #             if vis:
-            #                 v1 = str_xy(ver[e.verts[1].index].co)[3]
-            #                 v2 = str_xy(ver[e.verts[0].index].co)[3]
-            #                 delta = v1 - v2
-            #                 le = delta.length * wm.svg_scale
-            #                 if le > wm.min_len:
-            #                     # mover los extremos
-            #                     if wm.extra_bordes == "extender":
-            #                         if wm.edg_displ:
-            #                             v1 += delta * wm.edg_displ
-            #                             v2 -= delta * wm.edg_displ
-            #                         if wm.edg_noise:
-            #                             v1 += delta * (noise(0, wm.edg_noise))
-            #                             v2 -= delta * (noise(0, wm.edg_noise))
-            #                     if wm.extra_bordes == "brush":
-            #                         w = wm.stroke_wid + le / 25
-            #                         v1 -= delta * w / 250
-            #                         v2 += delta * w / 250
-
-            #                     a, b = str(round(v1[0], ExportSVG.precision)), str(
-            #                         round(v1[1], ExportSVG.precision)
-            #                     )
-            #                     c, d = str(round(v2[0], ExportSVG.precision)), str(
-            #                         round(v2[1], ExportSVG.precision)
-            #                     )
-
-            #                     if wm.extra_bordes == "extender":
-            #                         output_file(
-            #                             f'  <line stroke-width="{str(round(wm.stroke_wid, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
-            #                         )
-
-            #                     elif wm.extra_bordes == "curved_strokes":
-            #                         v3 = (
-            #                             v1
-            #                             - delta / 2
-            #                             + Vector(
-            #                                 (
-            #                                     noise(0, le * wm.cur_noise),
-            #                                     noise(0, le * wm.cur_noise),
-            #                                 )
-            #                             )
-            #                         )
-            #                         e, f = str(round(v3[0], ExportSVG.precision)), str(
-            #                             round(v3[1], ExportSVG.precision)
-            #                         )
-            #                         output_file(
-            #                             f'  <path stroke-width="{str(round(wm.stroke_wid, 2))}" d="M {a} {b} Q {e},{f} {c},{d}" />\n'
-            #                         )
-
-            #                     elif wm.extra_bordes == "brush":
-            #                         r1, r2 = Vector((noise(0, w), noise(0, w))), Vector(
-            #                             (noise(0, w), noise(0, w))
-            #                         )
-            #                         v3, v4 = v1 - delta / 2 + r1, v1 - delta / 2 + r2
-            #                         e, f = str(round(v3[0], ExportSVG.precision)), str(
-            #                             round(v3[1], ExportSVG.precision)
-            #                         )
-            #                         g, h = str(round(v4[0], ExportSVG.precision)), str(
-            #                             round(v4[1], ExportSVG.precision)
-            #                         )
-            #                         output_file(
-            #                             f'  <path fill="{str_rgb(wm.col_6)}" d="M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}" />\n'
-            #                         )
-
-            #                     else:  # outline
-            #                         W = visible(mes, e.verts[0].index, "vertice")[3]
-            #                         W += visible(mes, e.verts[1].index, "vertice")[3]
-            #                         W = 10 - round(abs(W * 5), ExportSVG.precision)
-            #                         if W > wm.stroke_con * 9:
-            #                             output_file(
-            #                                 f'  <line stroke-width="{str(round(W * wm.stroke_wid / 5, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
-            #                             )
-            #         output_file("</g>\n\n")
-
-            #     output_file(f"</g>  <!-- end {o.name} -->\n\n")
-
-            #     # release mesh memory
-            #     mes.free()
-
-            # # overlap beziers
-            # if wm.use_bezier:
-            #     output_file(bez)
-
-            # ## OBJECT LEVEL OPERATIONS >>
-
-            # OO = [str_xy(o.matrix_world.to_translation()) for o in sel_valid]
-
-            # # origin as a circle / name
-            # if wm.use_origin:
-            #     output_file(f'<g id="object.origin" fill="{str_rgb(wm.col_5)}">\n')
-            #     for i, o in enumerate(sel_valid):
-            #         s = max(
-            #             0.5,
-            #             abs(o.dimensions[0] * wm.obj_x)
-            #             + abs(o.dimensions[1] * wm.obj_y)
-            #             + abs(o.dimensions[2] * wm.obj_z),
-            #         )
-            #         n = wm.obj_x + wm.obj_y + wm.obj_z
-            #         if n:
-            #             s /= n
-            #         else:
-            #             s = 1
-            #         r = round(wm.svg_scale * s * wm.diam2, ExportSVG.precision)
-            #         c = OO[i]
-            #         if wm.use_name:
-            #             output_file(
-            #                 f'  <text font-size="{str(round(wm.fon_size * r / 10, 1))}" text-anchor="middle"{opa} transform = "rotate({str(round(noise(0, s * 2)))},{c[2]})" '
-            #                 + f'x="{c[0]}" y="{c[1]}">{str(o.name)}</text>\n'
-            #             )
-            #         else:
-            #             output_file(
-            #                 f'  <circle cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r)}" />\n'
-            #                 + f'  <circle fill="{str_rgb(vcol(wm.col_2))}" cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r / 2)}" />\n'
-            #             )
-            #     output_file("</g>\n\n")
-
-            # # continuous line object
-            # if wm.obj_conn:
-            #     if len(OO) > 1:
-            #         for i, c in enumerate(OO[:-1]):
-            #             if i == 0:
-            #                 output_file(
-            #                     f'  <path id="object.union" d="M {c[0]},{c[1]} {wm.curve} '
-            #                 )
-            #             else:
-            #                 output_file(c[2])
-            #             if wm.curve != "L":
-            #                 delta = OO[i + 1][3] - c[3]
-            #                 le = round(delta.length) * 5
-            #                 cc = (
-            #                     c[3]
-            #                     + delta / 2
-            #                     + Vector(
-            #                         (
-            #                             noise(0, le * wm.cur_noise),
-            #                             noise(0, le * wm.cur_noise),
-            #                         )
-            #                     )
-            #                 )
-            #                 output_file(str(cc[0]) + "," + str(cc[1]) + " ")
-            #         output_file(
-            #             f'{OO[-1][2]}" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
-            #         )
-
-            # # draw hierarchies / object relations
-            # if wm.obj_rel:
-            #     output_file(
-            #         f'<g id="relaciones" stroke="{str_rgb(wm.col_5)}" fill="none">\n'
-            #     )
-            #     for i, o in enumerate(sel_valid):
-            #         if o.parent:
-            #             h = str_xy(o.matrix_world.to_translation())
-            #             p = str_xy(o.parent.matrix_world.to_translation())
-            #             output_file(
-            #                 f'  <path id="rel.{o.name}.{o.parent.name}" d="M {p[2]}" />\n'
-            #             )
-            #     output_file("</g>\n")
-
-            # output_file("</g>\n\n</svg>\n\n")
-
-            # # eliminar objeto temporal 'join'
-            # if wm.join_objs:  ### and len(sel) > 1
-            #     for o in sel_valid:
-            #         o.select_set(True)
-            #     context.view_layer.objects.active = sel_valid[-1]  ###
-            #     tmp = join.data
-            #     sce.collection.objects.unlink(join)
-            #     bpy.data.objects.remove(join)
-            #     bpy.data.meshes.remove(tmp)
+            svg_doc = SVG_Document(sce.render.resolution_x, sce.render.resolution_y)
+            # open file for writing
+            with open(output_file_path, "w") as output_file:
+                # if wm.use_continue:
+                #     for nl in data[:-3]:
+                #         output_file(nl)
+                #     output_file("\n\n<!-- new blender session -->\n\n\n")
+                # else:
+                #  # Refactored
+                #     pass
+
+                # # new inkscape layer
+                # output_file(
+                #     f'<g inkscape:groupmode="layer" id="{str(time.asctime())}">\n\n'
+                # )
+
+                # # opacity value
+                # if wm.col_opacity < 1:
+                #     opa = (
+                #         ' opacity="' + str(round(wm.col_opacity, ExportSVG.precision)) + '"'
+                #     )
+                # else:
+                #     opa = ""
+
+                # # object to clone
+                # if wm.algo_vert != "nothing" and wm.use_clone:
+                #     clone = "X_" + str(R.choice(list(range(999))))
+                #     output_file(
+                #         f'<g id="{clone}" stroke-width="2"{opa} stroke="{str_rgb(wm.col_4)}">'
+                #         + '\n  <line x1="-10" y1="0" x2="10" y2="0" /><line x1="0" y1="10" x2="0" y2="-10" />\n</g>\n\n'
+                #     )
+
+                # # patrones de dashed
+                # if wm.algo_color == "pattern":
+                #     ran = str(R.randint(0, 999))
+                #     if wm.pat_col:
+                #         fondo = "none"
+                #     else:
+                #         fondo = str_rgb(wm.col_2)
+                #     output_file(
+                #         f'<g id="stripe{ran}">'
+                #         + f'<rect fill="{fondo}" x="0" y="0" height="10" width="1" />'
+                #         + f'<rect fill="{str_rgb(wm.col_3)}" x="0" y="0" height="2" width="1" />'
+                #         + "</g>\n\n<defs>\n"
+                #     )
+                #     c = [2.5, 3.5, 5, 7, 10]
+                #     for i in range(5):
+                #         output_file(
+                #             f'<pattern id="pat_{ran}_{str(i)}" patternUnits="userSpaceOnUse" width="1" '
+                #             + f'height="{str(c[i])}" patternTransform="rotate({str(R.randrange(-45, 45))}) scale({str(wm.pat_sca)})">'
+                #             + f'<use xlink:href="#stripe{ran}" />'
+                #             + "</pattern>\n"
+                #         )
+                #     output_file("</defs>\n\n")
+
+                # ## OPERATIONS AT MESH LEVEL >>
+
+                # # remove object with invalid coordinates
+                # sel_valid = [o for o in sel if str_xy(o.matrix_world.to_translation())[4]]
+
+                # # sort objects by distance to viewer -usa object origin-
+                # if wm.order_obj:
+                #     distance = [
+                #         (round((cam_co - o.location).length_squared, 5), o.name)
+                #         for o in sel_valid
+                #     ]
+                #     distance.sort(reverse=True)
+                #     sel_valid = [sce.objects[d[1]] for d in distance]
+
+                # sel = [
+                #     o
+                #     for o in sel_valid
+                #     if o.type in {"MESH", "CURVE", "FONT", "SURFACE", "META"}
+                # ]
+                # if not sel:
+                #     self.report({"ERROR"}, "No selected objects..!")
+
+                # # unite all objects into a single mesh
+                # if wm.join_objs and len(sel) > 1:
+                #     bpy.ops.object.select_all(action="DESELECT")
+
+                #     for i, o in enumerate(sel):
+                #         depsgraph = bpy.context.evaluated_depsgraph_get()  ###
+                #         tmp = bpy.data.meshes.new_from_object(o.evaluated_get(depsgraph))
+                #         tmp.transform(o.matrix_world)  ###
+
+                #         if not i:
+                #             join = bpy.data.objects.new("join", tmp)  ###
+                #             sce.collection.objects.link(join)
+                #         else:
+                #             add = bpy.data.objects.new("add", tmp)
+                #             sce.collection.objects.link(add)
+                #             add.select_set(True)
+                #             join.select_set(True)
+                #             context.view_layer.objects.active = join  ###
+                #             bpy.ops.object.join()
+                #             try:
+                #                 bpy.data.meshes.remove(tmp)  ###
+                #             except:
+                #                 pass
+                #     sel = [join]
+
+                # # overlap beziers
+                # if wm.use_bezier:
+                #     bez = ""
+
+                # # mesh loop
+                # for o in sel:
+                #     # convert objects + mesh modifiers
+                #     mes = bmesh.new()
+                #     line = render_line(o)
+                #     object_2_bm(context, o, mes, line)
+                #     ver = mes.verts
+
+                #     output_file(f'<g id="{o.name}">  <!-- start {o.name} -->\n\n')
+
+                #     # draw a curve in the SVG
+                #     if line[0]:
+                #         I = [str_xy(v.co) for v in mes.verts]
+                #         V = [v for v in I if v[4]]
+                #         if len(V) > 1:
+                #             output_file(
+                #                 f'  <path id="curva_3D.{o.name}" d="M {V[0][0]},{V[0][1]} L '
+                #             )
+                #             for c in V:
+                #                 output_file(c[2])
+                #             output_file(
+                #                 f'" stroke="{str_rgb(wm.col_5)}" stroke-width="{str(round(wm.stroke_wid, 2))}" stroke-linecap="round" fill="none" />\n\n'
+                #             )
+
+                #     # overlap beziers
+                #     if wm.use_bezier and line[1]:
+                #         if not line[0]:
+                #             I = [str_xy(v.co) for v in mes.verts]
+                #             V = [v for v in I if v[4]]
+                #         if len(V) > 1:
+                #             cur = o.data.copy()
+                #             cur.transform(o.matrix_world)
+                #             for spline in cur.splines:
+                #                 if spline.type == "BEZIER":
+                #                     bp = spline.bezier_points
+                #                     bez += (
+                #                         ' <path stroke="black" opacity=".5" fill="none" d="'
+                #                     )
+                #                     bez += "M" + str_xy(bp[0].co)[2]
+                #                     nodos = [
+                #                         (
+                #                             bp[i - 1].handle_right,
+                #                             bp[i].handle_left,
+                #                             bp[i].co,
+                #                         )
+                #                         for i in range(1, len(bp))
+                #                     ]
+                #                     for v in nodos:
+                #                         bez += (
+                #                             "C"
+                #                             + str_xy(v[0])[2]
+                #                             + str_xy(v[1])[2]
+                #                             + str_xy(v[2])[2]
+                #                         )
+                #                     if spline.use_cyclic_u:
+                #                         bez += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
+                #                     bez += '" />\n'
+                #             bpy.data.curves.remove(cur)
+
+                #     # gather info for the faces
+                #     FF = {}
+                #     for i, f in enumerate(mes.faces):
+                #         FF[i] = visible(
+                #             mes, i, "face"
+                #         )  # 3D - 2D - vector view - product - distance - valid
+
+                #     # list of visible faces
+                #     S = wm.use_select - 1
+
+                #     if wm.use_frontal:
+                #         P = [
+                #             k
+                #             for k in FF.keys()
+                #             if mes.faces[k].select > S
+                #             and FF[k][5]
+                #             and mes.faces[k].calc_area() > wm.min_area
+                #             and FF[k][3] < 0
+                #         ]
+                #     else:
+                #         P = [
+                #             k
+                #             for k in FF.keys()
+                #             if mes.faces[k].select > S
+                #             if FF[k][5] and mes.faces[k].calc_area() > wm.min_area
+                #         ]
+
+                #     # list of vertices in visible faces ####
+                #     I = []
+                #     for k in P:
+                #         I.append([v.index for v in mes.faces[k].verts])
+                #     V = list(set([v for f in I for v in f]))
+
+                #     # gather info for vertices on visible faces
+                #     QQ = {}  # str x - str y - str x,y - vector x,y - valid
+                #     for v in V:
+                #         QQ[v] = str_xy(ver[v].co)
+
+                #     # order the faces according to distance to the viewer -use centroid-
+                #     distance = [(round(FF[f][4], ExportSVG.precision), f) for f in P]
+                #     if orto:
+                #         distance.sort()
+                #     else:
+                #         distance.sort(reverse=True)
+                #     P = [d[1] for d in distance]
+
+                #     # remove vertices inside faces with 3 or 4 edges -see extend to ngons-
+                #     if wm.use_occ:
+                #         if wm.extra_bordes != "nothing" or wm.algo_vert != "nothing":
+                #             for c in P:
+                #                 if mes.faces[c].calc_area() > wm.min_area * 10:
+                #                     pv = mes.faces[c].verts
+                #                     for v in V:
+                #                         if len(pv) == 3:
+                #                             q = M.geometry.intersect_point_tri_2d(
+                #                                 QQ[v][3],
+                #                                 QQ[pv[0].index][3],
+                #                                 QQ[pv[1].index][3],
+                #                                 QQ[pv[2].index][3],
+                #                             )
+                #                         else:
+                #                             q = M.geometry.intersect_point_quad_2d(
+                #                                 QQ[v][3],
+                #                                 QQ[pv[0].index][3],
+                #                                 QQ[pv[1].index][3],
+                #                                 QQ[pv[2].index][3],
+                #                                 QQ[pv[3].index][3],
+                #                             )
+                #                         if q and v in V:
+                #                             if (cam_co - ver[v].co) > (cam_co - FF[c][0]):
+                #                                 V.remove(v)
+
+                #     # fill faces & trace edges
+                #     if P and (
+                #         wm.algo_color != "nothing"
+                #         or wm.algo_edge != "nothing"
+                #         or wm.algo_shade == "nothing"
+                #     ):
+                #         # border width
+                #         w = ""
+                #         stroke = ""
+                #         if wm.algo_edge != "nothing":
+                #             if wm.edge_wid:
+                #                 w = f' stroke-width="{str(wm.edge_wid)}px" stroke-linejoin="{wm.edge_join}" stroke-linecap="round"'
+
+                #         # border style
+                #         output_file(f'<g id="face_edges.{o.name}"{w}')
+                #         if wm.algo_edge == "linear":
+                #             output_file(' stroke="' + str_rgb(wm.col_3) + '">\n')
+                #         elif wm.algo_edge == "dashed":
+                #             u = str(1 + 3 * wm.edge_wid) + "," + str(1 + 1.5 * wm.edge_wid)
+                #             output_file(
+                #                 f' stroke="{str_rgb(wm.col_3)}" stroke-dasharray="{u}">\n'
+                #             )
+                #         else:
+                #             output_file(">\n")
+
+                #         # calculate step depth
+                #         if wm.algo_shade == "depth" or wm.use_effect == "explode":
+                #             if len(P):
+                #                 range_value = (
+                #                     abs((distance[0][0] - distance[-1][0])) + 1e-05
+                #                 )
+                #             else:
+                #                 range_value = 0.5
+                #             # if wm.algo_shade == 'depth':
+                #             # col = vcol(wm.col_1, wm.col_noise)
+
+                #         # object color
+
+                #         if wm.algo_color == "object":
+                #             colobj = vcol(wm.col_1, wm.col_noise)
+
+                #         elif wm.algo_color == "obj_pallete":
+                #             colobj = R.choice(
+                #                 [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
+                #             )
+
+                #         # loop faces ------------------------------------------------------>
+
+                #         for i, f in enumerate(P):
+                #             if wm.algo_shade == "depth" or wm.use_effect == "explode":
+                #                 dis = (distance[0][0] - distance[i][0]) / range_value
+
+                #             # apply color by faces
+
+                #             if wm.algo_color == "object" or wm.algo_color == "obj_pallete":
+                #                 col = colobj
+
+                #             elif wm.algo_color == "faces":
+                #                 col = vcol(wm.col_2, 0.01 + wm.col_noise / 2)
+
+                #             elif wm.algo_color == "face_pallete":
+                #                 col = R.choice(
+                #                     [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
+                #                 )
+
+                #             elif wm.algo_color == "material":
+                #                 sl = mes.faces[f].material_index
+                #                 if o.material_slots and o.material_slots[sl].name:
+                #                     col = M.Color(
+                #                         o.material_slots[sl].material.diffuse_color[:-1]
+                #                     )
+                #                     col = vcol(col, wm.col_noise)
+                #                 else:
+                #                     col = wm.col_1
+
+                #             elif wm.algo_color == "indices":
+                #                 val = round(f / len(mes.faces), ExportSVG.precision)
+                #                 col.r = 1 - val
+                #                 col.g = col.b = val
+
+                #             elif wm.algo_color == "pattern":
+                #                 n = int(5.25 * abs(FF[f][3]) - 0.5)
+                #                 if n > 4:
+                #                     fill = fondo
+                #                 else:
+                #                     fill = "url(#pat_" + ran + "_" + str(n) + ")"
+
+                #             # aplicar sombreado
+
+                #             copiacol = col.copy()
+
+                #             if wm.algo_shade == "back_light":
+                #                 dot = abs(FF[f][3])
+                #                 copiacol.v = max(1 - dot, 0.001)
+                #                 copiacol.s *= dot
+
+                #             elif wm.algo_shade == "front_light":
+                #                 dot = abs(FF[f][3])
+                #                 copiacol.v = dot
+                #                 copiacol.s *= 1 - dot
+
+                #             elif wm.algo_shade == "indices":
+                #                 val = round(f / len(mes.faces), ExportSVG.precision)
+                #                 copiacol.v = 1 - val
+                #                 copiacol.s = 0.75 - val / 2
+
+                #             elif wm.algo_shade == "color_ramp":
+                #                 dot = abs(FF[f][3])
+                #                 copiacol.v = dot
+                #                 copiacol.h = math.modf(copiacol.h + dot)[0]
+
+                #             elif wm.algo_shade == "soft_shading":
+                #                 dot = abs(FF[f][3])
+                #                 copiacol.v = dot
+
+                #             elif wm.algo_shade == "posterize":
+                #                 dot = round(abs(FF[f][3]) * wm.pos_step)
+                #                 copiacol.v = dot / wm.pos_step
+
+                #             elif wm.algo_shade == "depth":
+                #                 copiacol.v = dis
+                #                 copiacol.s = dis * col.s
+
+                #             elif wm.algo_shade == "backfaces":
+                #                 dot = (FF[f][3]) < 0
+                #                 copiacol.v = 0.5 * dot + 0.25
+
+                #             if wm.algo_color != "pattern":
+                #                 fill = str_rgb(copiacol)
+
+                #             if wm.algo_color == "nothing":
+                #                 fill = "none"
+
+                #             # edge per face
+                #             if wm.algo_color != "nothing" or wm.algo_shade == "pattern":
+                #                 if wm.algo_edge == "match_fill":
+                #                     stroke = f' stroke="{fill}"'
+
+                #             # draw the vertices of the faces
+                #             if wm.use_effect == "nothing" or wm.use_effect == "explode":
+                #                 output_file(f'  <polygon{stroke} fill="{fill}" points="')
+                #                 for v in mes.faces[f].verts:
+                #                     if wm.use_effect == "explode":
+                #                         m = Vector(
+                #                             (
+                #                                 noise(0, wm.fac_noise),
+                #                                 noise(0, wm.fac_noise),
+                #                                 (noise(0, wm.fac_noise)),
+                #                             )
+                #                         )
+                #                         test = str_xy(ver[v.index].co + m / 50)
+                #                         if test[4]:
+                #                             output_file(test[2])
+                #                     else:
+                #                         output_file(str(QQ[v.index][2]))
+
+                #                 if wm.use_effect == "explode":
+                #                     try:
+                #                         m = (
+                #                             str(FF[i][1][0])
+                #                             + ","
+                #                             + str(-FF[i][1][1] + region.height)
+                #                         )
+                #                     except:
+                #                         m = "0,0"
+                #                     output_file(
+                #                         f'"{opa} transform="rotate({str(dis * noise(0, wm.fac_expl))},{m})" />\n'
+                #                     )
+                #                 else:
+                #                     output_file(f'" {opa} />\n')
+
+                #             else:
+                #                 dot = abs(FF[f][3])
+                #                 delta = FF[f][4]
+                #                 a = math.sqrt(mes.faces[f].calc_area())
+                #                 l = (
+                #                     a
+                #                     * dot
+                #                     * 100
+                #                     * wm.shape_size
+                #                     / delta
+                #                     * wm.svg_scale
+                #                     / (1 + 25 * orto)
+                #                 )  ####
+                #                 xy = str_xy(FF[f][0])
+                #                 x = float(xy[0])
+                #                 y = float(xy[1])
+
+                #                 if wm.use_effect == "circles" and l > 1:
+                #                     output_file(
+                #                         f'  <circle cx="{x}" cy="{y}" r="{l}" {stroke} fill="{fill}" {opa} />\n'
+                #                     )
+
+                #                 if wm.use_effect == "squares" and l > 1:
+                #                     output_file(
+                #                         f'  <rect x="{x - l}" y="{y - l}" width="{l * 2}" height="{l * 2}" {stroke} fill="{fill}" {opa} />\n'
+                #                     )
+
+                #         output_file("</g>\n\n")
+
+                #     # draw vertices as circles / clones
+                #     if wm.algo_vert != "nothing":
+                #         output_file(
+                #             f'<g id="vertices.{o.name}" fill="{str_rgb(wm.col_4)}">\n'
+                #         )
+                #         for i, v in enumerate(V):
+                #             test = visible(mes, v, "vertice")
+                #             if test[5]:
+                #                 vis = True
+                #                 dot = test[3]
+                #                 # if wm.use_frontal and dot > 0:
+                #                 # vis = False
+                #                 if vis:
+                #                     if wm.algo_vert == "linear":
+                #                         r = round(
+                #                             wm.svg_scale * wm.diam1, ExportSVG.precision
+                #                         )
+                #                     elif wm.algo_vert == "normal_to_inside":
+                #                         r = round(
+                #                             wm.svg_scale * wm.diam1 * abs(dot),
+                #                             ExportSVG.precision,
+                #                         )
+                #                     elif wm.algo_vert == "normal_to_outside":
+                #                         r = round(
+                #                             wm.svg_scale * wm.diam1 * (1 - abs(dot)),
+                #                             ExportSVG.precision,
+                #                         )
+                #                     else:
+                #                         # algo: use distance on an axis
+                #                         if wm.ver_spa == "local":
+                #                             matriz = o.matrix_world.to_translation()
+                #                             z = abs(
+                #                                 ver[v].co[int(wm.ver_axis)]
+                #                                 - matriz[int(wm.ver_axis)]
+                #                             )
+                #                         else:
+                #                             z = abs(ver[v].co[int(wm.ver_axis)])
+                #                         r = round(
+                #                             wm.svg_scale * z * wm.diam1, ExportSVG.precision
+                #                         )
+
+                #                     # draw vertices
+                #                     c = str_xy(ver[v].co)
+                #                     if r >= 1:
+                #                         if wm.use_clone:
+                #                             output_file(
+                #                                 f'  <use xlink:href="#{clone}"'
+                #                                 + f' transform="translate({c[2]})'
+                #                                 + f" scale({str(round(r / 10, ExportSVG.precision))},{str(round(r / 10, ExportSVG.precision))})"
+                #                                 + f' rotate({str(round(R.random() * 360))})" />\n'
+                #                             )
+                #                         else:
+                #                             output_file(
+                #                                 f'  <circle cx="{c[0]}" cy="{c[1]}" r="{str(r / 2)}"{opa} />\n'
+                #                             )
+                #         output_file("</g>\n\n")
+
+                #     # step value per object
+                #     lev = len(ver)
+                #     if lev:
+                #         offset = R.randrange(0, lev)
+                #     extra = R.randrange(0, wm.curve_var + 1)
+
+                #     # path vertices -step + variation-
+                #     if wm.vert_conn and len(ver) > 1:
+                #         i = 1
+                #         off = offset
+                #         c = str_xy(ver[off].co)
+                #         if c[4]:
+                #             output_file(
+                #                 f'<path id="path.{o.name}" d="M {c[0]},{c[1]} {wm.curve} '
+                #             )
+                #             while i <= lev:  ####
+                #                 if i + off >= lev:
+                #                     off -= lev
+                #                 c = str_xy(ver[i + off].co)
+                #                 if c[4]:
+                #                     output_file(c[2])
+                #                 i += wm.curve_step + extra
+                #             output_file(
+                #                 f' z" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
+                #             )
+
+                #     # number vertices -step + variation-
+                #     if wm.use_num and len(ver) > 1:
+                #         i = 1
+                #         off = offset
+                #         c = str_xy(ver[off].co)
+                #         if c[4]:
+                #             output_file(
+                #                 '<g id="indices.'
+                #                 + o.name
+                #                 + '" font-size="'
+                #                 + str(wm.fon_size)
+                #                 + '" text-anchor="middle">\n'
+                #             )
+                #             while i <= lev:  ####
+                #                 if i + off >= lev:
+                #                     off -= lev
+                #                 c = str_xy(ver[i + off].co)
+                #                 if c[4]:
+                #                     output_file(
+                #                         f'  <text x="{c[0]}" y="{c[1]}">{str(i)}</text>\n'
+                #                     )
+                #                 i += wm.curve_step + extra
+                #             output_file("</g>\n\n")
+
+                #     # extra solid border
+                #     if wm.extra_bordes != "nothing":
+                #         edg = mes.edges
+                #         output_file(
+                #             f'<g id="bordes.{o.name}" stroke="{str_rgb(wm.col_6)}" stroke-linecap="round" fill="none">\n'
+                #         )
+
+                #         for e in edg:
+                #             vis = True
+                #             if e.verts[0].index not in V or e.verts[1].index not in V:
+                #                 vis = False
+                #             if wm.use_boundary:
+                #                 vis = e.is_boundary
+                #             if vis:
+                #                 vis = e.calc_face_angle(1.5708) > wm.stroke_ang
+                #             if vis:
+                #                 v1 = str_xy(ver[e.verts[1].index].co)[3]
+                #                 v2 = str_xy(ver[e.verts[0].index].co)[3]
+                #                 delta = v1 - v2
+                #                 le = delta.length * wm.svg_scale
+                #                 if le > wm.min_len:
+                #                     # mover los extremos
+                #                     if wm.extra_bordes == "extender":
+                #                         if wm.edg_displ:
+                #                             v1 += delta * wm.edg_displ
+                #                             v2 -= delta * wm.edg_displ
+                #                         if wm.edg_noise:
+                #                             v1 += delta * (noise(0, wm.edg_noise))
+                #                             v2 -= delta * (noise(0, wm.edg_noise))
+                #                     if wm.extra_bordes == "brush":
+                #                         w = wm.stroke_wid + le / 25
+                #                         v1 -= delta * w / 250
+                #                         v2 += delta * w / 250
+
+                #                     a, b = str(round(v1[0], ExportSVG.precision)), str(
+                #                         round(v1[1], ExportSVG.precision)
+                #                     )
+                #                     c, d = str(round(v2[0], ExportSVG.precision)), str(
+                #                         round(v2[1], ExportSVG.precision)
+                #                     )
+
+                #                     if wm.extra_bordes == "extender":
+                #                         output_file(
+                #                             f'  <line stroke-width="{str(round(wm.stroke_wid, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
+                #                         )
+
+                #                     elif wm.extra_bordes == "curved_strokes":
+                #                         v3 = (
+                #                             v1
+                #                             - delta / 2
+                #                             + Vector(
+                #                                 (
+                #                                     noise(0, le * wm.cur_noise),
+                #                                     noise(0, le * wm.cur_noise),
+                #                                 )
+                #                             )
+                #                         )
+                #                         e, f = str(round(v3[0], ExportSVG.precision)), str(
+                #                             round(v3[1], ExportSVG.precision)
+                #                         )
+                #                         output_file(
+                #                             f'  <path stroke-width="{str(round(wm.stroke_wid, 2))}" d="M {a} {b} Q {e},{f} {c},{d}" />\n'
+                #                         )
+
+                #                     elif wm.extra_bordes == "brush":
+                #                         r1, r2 = Vector((noise(0, w), noise(0, w))), Vector(
+                #                             (noise(0, w), noise(0, w))
+                #                         )
+                #                         v3, v4 = v1 - delta / 2 + r1, v1 - delta / 2 + r2
+                #                         e, f = str(round(v3[0], ExportSVG.precision)), str(
+                #                             round(v3[1], ExportSVG.precision)
+                #                         )
+                #                         g, h = str(round(v4[0], ExportSVG.precision)), str(
+                #                             round(v4[1], ExportSVG.precision)
+                #                         )
+                #                         output_file(
+                #                             f'  <path fill="{str_rgb(wm.col_6)}" d="M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}" />\n'
+                #                         )
+
+                #                     else:  # outline
+                #                         W = visible(mes, e.verts[0].index, "vertice")[3]
+                #                         W += visible(mes, e.verts[1].index, "vertice")[3]
+                #                         W = 10 - round(abs(W * 5), ExportSVG.precision)
+                #                         if W > wm.stroke_con * 9:
+                #                             output_file(
+                #                                 f'  <line stroke-width="{str(round(W * wm.stroke_wid / 5, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
+                #                             )
+                #         output_file("</g>\n\n")
+
+                #     output_file(f"</g>  <!-- end {o.name} -->\n\n")
+
+                #     # release mesh memory
+                #     mes.free()
+
+                # # overlap beziers
+                # if wm.use_bezier:
+                #     output_file(bez)
+
+                # ## OBJECT LEVEL OPERATIONS >>
+
+                # OO = [str_xy(o.matrix_world.to_translation()) for o in sel_valid]
+
+                # # origin as a circle / name
+                # if wm.use_origin:
+                #     output_file(f'<g id="object.origin" fill="{str_rgb(wm.col_5)}">\n')
+                #     for i, o in enumerate(sel_valid):
+                #         s = max(
+                #             0.5,
+                #             abs(o.dimensions[0] * wm.obj_x)
+                #             + abs(o.dimensions[1] * wm.obj_y)
+                #             + abs(o.dimensions[2] * wm.obj_z),
+                #         )
+                #         n = wm.obj_x + wm.obj_y + wm.obj_z
+                #         if n:
+                #             s /= n
+                #         else:
+                #             s = 1
+                #         r = round(wm.svg_scale * s * wm.diam2, ExportSVG.precision)
+                #         c = OO[i]
+                #         if wm.use_name:
+                #             output_file(
+                #                 f'  <text font-size="{str(round(wm.fon_size * r / 10, 1))}" text-anchor="middle"{opa} transform = "rotate({str(round(noise(0, s * 2)))},{c[2]})" '
+                #                 + f'x="{c[0]}" y="{c[1]}">{str(o.name)}</text>\n'
+                #             )
+                #         else:
+                #             output_file(
+                #                 f'  <circle cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r)}" />\n'
+                #                 + f'  <circle fill="{str_rgb(vcol(wm.col_2))}" cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r / 2)}" />\n'
+                #             )
+                #     output_file("</g>\n\n")
+
+                # # continuous line object
+                # if wm.obj_conn:
+                #     if len(OO) > 1:
+                #         for i, c in enumerate(OO[:-1]):
+                #             if i == 0:
+                #                 output_file(
+                #                     f'  <path id="object.union" d="M {c[0]},{c[1]} {wm.curve} '
+                #                 )
+                #             else:
+                #                 output_file(c[2])
+                #             if wm.curve != "L":
+                #                 delta = OO[i + 1][3] - c[3]
+                #                 le = round(delta.length) * 5
+                #                 cc = (
+                #                     c[3]
+                #                     + delta / 2
+                #                     + Vector(
+                #                         (
+                #                             noise(0, le * wm.cur_noise),
+                #                             noise(0, le * wm.cur_noise),
+                #                         )
+                #                     )
+                #                 )
+                #                 output_file(str(cc[0]) + "," + str(cc[1]) + " ")
+                #         output_file(
+                #             f'{OO[-1][2]}" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
+                #         )
+
+                # # draw hierarchies / object relations
+                # if wm.obj_rel:
+                #     output_file(
+                #         f'<g id="relaciones" stroke="{str_rgb(wm.col_5)}" fill="none">\n'
+                #     )
+                #     for i, o in enumerate(sel_valid):
+                #         if o.parent:
+                #             h = str_xy(o.matrix_world.to_translation())
+                #             p = str_xy(o.parent.matrix_world.to_translation())
+                #             output_file(
+                #                 f'  <path id="rel.{o.name}.{o.parent.name}" d="M {p[2]}" />\n'
+                #             )
+                #     output_file("</g>\n")
+
+                # output_file("</g>\n\n</svg>\n\n")
+
+                # # eliminar objeto temporal 'join'
+                # if wm.join_objs:  ### and len(sel) > 1
+                #     for o in sel_valid:
+                #         o.select_set(True)
+                #     context.view_layer.objects.active = sel_valid[-1]  ###
+                #     tmp = join.data
+                #     sce.collection.objects.unlink(join)
+                #     bpy.data.objects.remove(join)
+                #     bpy.data.meshes.remove(tmp)
+                output_file.write(str(svg_doc))
 
             print(
                 "Frame", frame, ">", round(time.time() - begin_frame_time, 4), "seconds"
@@ -1768,6 +1784,7 @@ bpy.types.WindowManager.render_range = bpy.props.BoolProperty(
     default=False,
     description="Export animation as a sequence of SVG files",
 )
+
 
 if __name__ == "__main__":
     classes = (ExportSVG, OpenSVG, IncrSVG, ComprSVG, PanelSVG)
