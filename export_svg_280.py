@@ -9,6 +9,7 @@ bl_info = {
 
 import bpy, bmesh, os, math, time
 import mathutils as M, random as R, bpy_extras
+import itertools
 from bpy_extras import view3d_utils as V3D
 from mathutils import Vector
 from collections.abc import Iterable
@@ -181,6 +182,8 @@ class ExportSVG(bpy.types.Operator):
         wm = bpy.context.window_manager
         output_file_path = bpy.path.abspath(wm.route)
 
+        selected_objects = bpy.context.selected_objects
+
         # col = M.Color((0, 0, 0))
         # center = (region.width / 2, region.height / 2)
         # cam_co = V3D.region_2d_to_origin_3d(region, region3d, center)
@@ -195,9 +198,7 @@ class ExportSVG(bpy.types.Operator):
         # else:
         #     bis = False
 
-        # sel = bpy.context.selected_objects
-
-        # # define scale factor for ortogonal mode -> 1BU = 100px
+        # define scale factor for ortogonal mode -> 1BU = 100px
         if orto and wm.auto_sca:
             BU = Vector((1, 0, 0))
             BU.rotate(region3d.view_matrix.inverted())
@@ -244,8 +245,11 @@ class ExportSVG(bpy.types.Operator):
             # return (val, coo, ojo, dot, dis, True)
             pass
 
-        # 3d co - 2d co - vector view - product - distance - valid
+        # 3d coordinate to 2d coordinate
+        def v3d_to_v2d(v3d):
+            return V3D.location_3d_to_region_2d(region, region3d, v3d)
 
+        # 3d co - 2d co - vector view - product - distance - valid
         def str_xy(
             coo3D, esc=svg_sca, xxx=wm.offset_x + slide_x, yyy=wm.offset_y + slide_y
         ):
@@ -417,10 +421,14 @@ class ExportSVG(bpy.types.Operator):
                 #         )
                 #     output_file("</defs>\n\n")
 
-                # ## OPERATIONS AT MESH LEVEL >>
+                ## OPERATIONS AT MESH LEVEL >>
 
-                # # remove object with invalid coordinates
-                # sel_valid = [o for o in sel if str_xy(o.matrix_world.to_translation())[4]]
+                # remove object with invalid coordinates
+                valid_selected_objects = [
+                    o
+                    for o in selected_objects
+                    if v3d_to_v2d(o.matrix_world.to_translation()) is not None
+                ]
 
                 # # sort objects by distance to viewer -usa object origin-
                 # if wm.order_obj:
@@ -430,6 +438,13 @@ class ExportSVG(bpy.types.Operator):
                 #     ]
                 #     distance.sort(reverse=True)
                 #     sel_valid = [sce.objects[d[1]] for d in distance]
+
+                grouped_objects = {
+                    obj_type: list(objects)
+                    for obj_type, objects in itertools.groupby(
+                        valid_selected_objects, key=lambda o: o.type
+                    )
+                }
 
                 # sel = [
                 #     o
