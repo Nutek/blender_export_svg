@@ -18,7 +18,7 @@ from collections.abc import Iterable
 #####################################################################
 
 
-def frames_with_file_path(frame_numbers: Iterable[int], output_path: str):
+def frames_with_file_path(frame_numbers: Iterable, output_path: str):
     fill_size = len(str(max(frame_numbers)))
     basename_path, extension = os.path.splitext(output_path)
     for frame_number in frame_numbers:
