@@ -527,38 +527,45 @@ class ExportSVG(bpy.types.Operator):
                             }
                             object_group.add(SVG_Element("path", props))
 
-                    #     # overlap beziers
-                    #     if wm.use_bezier and line[1]:
-                    #         if not line[0]:
-                    #             I = [str_xy(v.co) for v in mesh.verts]
-                    #             V = [v for v in I if v[4]]
-                    #         if len(V) > 1:
-                    #             cur = obj.data.copy()
-                    #             cur.transform(obj.matrix_world)
-                    #             for spline in cur.splines:
-                    #                 if spline.type == "BEZIER":
-                    #                     bp = spline.bezier_points
-                    #                     bez += ' <path stroke="black" opacity=".5" fill="none" d="'
-                    #                     bez += "M" + str_xy(bp[0].co)[2]
-                    #                     nodos = [
-                    #                         (
-                    #                             bp[i - 1].handle_right,
-                    #                             bp[i].handle_left,
-                    #                             bp[i].co,
-                    #                         )
-                    #                         for i in range(1, len(bp))
-                    #                     ]
-                    #                     for v in nodos:
-                    #                         bez += (
-                    #                             "C"
-                    #                             + str_xy(v[0])[2]
-                    #                             + str_xy(v[1])[2]
-                    #                             + str_xy(v[2])[2]
-                    #                         )
-                    #                     if spline.use_cyclic_u:
-                    #                         bez += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
-                    #                     bez += '" />\n'
-                    #             bpy.data.curves.remove(cur)
+                        # overlap beziers
+                        if wm.use_bezier and line[1]:
+                            if not line[0]:
+                                I = [str_xy(v.co) for v in mesh.verts]
+                                V = [v for v in I if v[4]]
+                            if len(V) > 1:
+                                cur = obj.data.copy()
+                                cur.transform(obj.matrix_world)
+                                for spline in cur.splines:
+                                    if spline.type == "BEZIER":
+                                        bp = spline.bezier_points
+
+                                        points = "M" + str_xy(bp[0].co)[2]
+                                        nodos = [
+                                            (
+                                                bp[i - 1].handle_right,
+                                                bp[i].handle_left,
+                                                bp[i].co,
+                                            )
+                                            for i in range(1, len(bp))
+                                        ]
+                                        for v in nodos:
+                                            points += (
+                                                "C"
+                                                + str_xy(v[0])[2]
+                                                + str_xy(v[1])[2]
+                                                + str_xy(v[2])[2]
+                                            )
+                                        if spline.use_cyclic_u:
+                                            points += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
+
+                                        props = {
+                                            'stroke':"black",
+                                            'opacity':".5",
+                                            'fill':"none",
+                                            'd': points,
+                                        }
+                                        object_group.add(SVG_Element("path", props))
+                                bpy.data.curves.remove(cur)
 
                     # gather info for the faces
                     FF = {}
