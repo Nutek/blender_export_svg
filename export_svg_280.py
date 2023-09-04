@@ -382,6 +382,13 @@ class ExportSVG(bpy.types.Operator):
             #         return {"FINISHED"}
 
             svg_doc = SVG_Document(sce.render.resolution_x, sce.render.resolution_y)
+            # TODO: Remove it after task completion
+            svg_doc.add(SVG_Element('rect', {
+                'width': sce.render.resolution_x,
+                'height': sce.render.resolution_y,
+                'style':"fill:none;stroke-width:1%;stroke:rgb(200,200,200)"
+            }))
+            
             properties_for_all_objects = {
                 "opacity": str(round(wm.col_opacity, ExportSVG.precision))
             }
