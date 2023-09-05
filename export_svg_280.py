@@ -61,8 +61,11 @@ class TAT_Defaults:
 
 
 class TAT_Entity:
+    def __init__(self, raw_content: str = ""):
+        self._raw_content = raw_content
+
     def format_string(self, spacer: Spacer = TAT_Defaults.spacer):
-        return str(spacer)
+        return f"{spacer}{self._raw_content}"
 
     def __str__(self):
         return self.format_string()
@@ -142,6 +145,15 @@ class SVG_Element(SVG_Entity):
 
     def export(self) -> TAT_Entity:
         return TAT_Node(self._name).add_attrs(**self._properties)
+
+
+class SVG_Text(SVG_Element):
+    def __init__(self, text: str, properties: dict = {}):
+        super().__init__("text", properties)
+        self._text = text
+
+    def export(self):
+        return super().export().add_node(TAT_Entity(self._text))
 
 
 class SVG_Group(SVG_Element):
@@ -1063,29 +1075,37 @@ class ExportSVG(bpy.types.Operator):
                                 )
                             )
 
-                #     # number vertices -step + variation-
-                #     if wm.use_num and len(ver) > 1:
-                #         i = 1
-                #         off = offset
-                #         c = str_xy(ver[off].co)
-                #         if c[4]:
-                #             output_file(
-                #                 '<g id="indices.'
-                #                 + o.name
-                #                 + '" font-size="'
-                #                 + str(wm.fon_size)
-                #                 + '" text-anchor="middle">\n'
-                #             )
-                #             while i <= lev:  ####
-                #                 if i + off >= lev:
-                #                     off -= lev
-                #                 c = str_xy(ver[i + off].co)
-                #                 if c[4]:
-                #                     output_file(
-                #                         f'  <text x="{c[0]}" y="{c[1]}">{str(i)}</text>\n'
-                #                     )
-                #                 i += wm.curve_step + extra
-                #             output_file("</g>\n\n")
+                    # number vertices -step + variation-
+                    if wm.use_num and len(verts) > 1:
+                        i = 1
+                        off = offset
+                        c = str_xy(verts[off].co)
+                        if c[4]:
+                            text_group = SVG_Group(
+                                {
+                                    "id": f"indices.{obj.name}",
+                                    "font-size": wm.fon_size,
+                                    "text-anchor": "middle",
+                                }
+                            )
+
+                            while i <= lev:  ####
+                                if i + off >= lev:
+                                    off -= lev
+                                c = str_xy(verts[i + off].co)
+                                if c[4]:
+                                    text_group.add(
+                                        SVG_Text(
+                                            str(i),
+                                            {
+                                                "x": c[0],
+                                                "y": c[1],
+                                            },
+                                        )
+                                    )
+                                i += wm.curve_step + extra
+
+                            object_group.add(text_group)
 
                 #     # extra solid border
                 #     if wm.extra_bordes != "nothing":
