@@ -957,62 +957,77 @@ class ExportSVG(bpy.types.Operator):
                                         )
                                     )
 
-                #     # draw vertices as circles / clones
-                #     if wm.algo_vert != "nothing":
-                #         output_file(
-                #             f'<g id="vertices.{o.name}" fill="{str_rgb(wm.col_4)}">\n'
-                #         )
-                #         for i, v in enumerate(V):
-                #             test = visible(mes, v, "vertice")
-                #             if test[5]:
-                #                 vis = True
-                #                 dot = test[3]
-                #                 # if wm.use_frontal and dot > 0:
-                #                 # vis = False
-                #                 if vis:
-                #                     if wm.algo_vert == "linear":
-                #                         r = round(
-                #                             wm.svg_scale * wm.diam1, ExportSVG.precision
-                #                         )
-                #                     elif wm.algo_vert == "normal_to_inside":
-                #                         r = round(
-                #                             wm.svg_scale * wm.diam1 * abs(dot),
-                #                             ExportSVG.precision,
-                #                         )
-                #                     elif wm.algo_vert == "normal_to_outside":
-                #                         r = round(
-                #                             wm.svg_scale * wm.diam1 * (1 - abs(dot)),
-                #                             ExportSVG.precision,
-                #                         )
-                #                     else:
-                #                         # algo: use distance on an axis
-                #                         if wm.ver_spa == "local":
-                #                             matriz = o.matrix_world.to_translation()
-                #                             z = abs(
-                #                                 ver[v].co[int(wm.ver_axis)]
-                #                                 - matriz[int(wm.ver_axis)]
-                #                             )
-                #                         else:
-                #                             z = abs(ver[v].co[int(wm.ver_axis)])
-                #                         r = round(
-                #                             wm.svg_scale * z * wm.diam1, ExportSVG.precision
-                #                         )
+                    # draw vertices as circles / clones
+                    if wm.algo_vert != "nothing":
+                        vertices_group = SVG_Group(
+                            {
+                                "id": f"vertices.{obj.name}",
+                                "fill": str_rgb(wm.col_4),
+                            }
+                        )
+                        object_group.add(vertices_group)
+                        for i, v in enumerate(V):
+                            test = visible(mesh, v, "vertice")
+                            if test[5]:
+                                vis = True
+                                dot = test[3]
+                                # if wm.use_frontal and dot > 0:
+                                # vis = False
+                                if vis:
+                                    if wm.algo_vert == "linear":
+                                        r = round(
+                                            wm.svg_scale * wm.diam1, ExportSVG.precision
+                                        )
+                                    elif wm.algo_vert == "normal_to_inside":
+                                        r = round(
+                                            wm.svg_scale * wm.diam1 * abs(dot),
+                                            ExportSVG.precision,
+                                        )
+                                    elif wm.algo_vert == "normal_to_outside":
+                                        r = round(
+                                            wm.svg_scale * wm.diam1 * (1 - abs(dot)),
+                                            ExportSVG.precision,
+                                        )
+                                    else:
+                                        # algo: use distance on an axis
+                                        if wm.ver_spa == "local":
+                                            matriz = o.matrix_world.to_translation()
+                                            z = abs(
+                                                verts[v].co[int(wm.ver_axis)]
+                                                - matriz[int(wm.ver_axis)]
+                                            )
+                                        else:
+                                            z = abs(verts[v].co[int(wm.ver_axis)])
+                                        r = round(
+                                            wm.svg_scale * z * wm.diam1,
+                                            ExportSVG.precision,
+                                        )
 
-                #                     # draw vertices
-                #                     c = str_xy(ver[v].co)
-                #                     if r >= 1:
-                #                         if wm.use_clone:
-                #                             output_file(
-                #                                 f'  <use xlink:href="#{clone}"'
-                #                                 + f' transform="translate({c[2]})'
-                #                                 + f" scale({str(round(r / 10, ExportSVG.precision))},{str(round(r / 10, ExportSVG.precision))})"
-                #                                 + f' rotate({str(round(R.random() * 360))})" />\n'
-                #                             )
-                #                         else:
-                #                             output_file(
-                #                                 f'  <circle cx="{c[0]}" cy="{c[1]}" r="{str(r / 2)}"{opa} />\n'
-                #                             )
-                #         output_file("</g>\n\n")
+                                    # draw vertices
+                                    c = str_xy(vertices_group[v].co)
+                                    if r >= 1:
+                                        if wm.use_clone:
+                                            vertices_group.add(
+                                                SVG_Element(
+                                                    "use",
+                                                    {
+                                                        "xlink:href": f"#{clone}",
+                                                        "transform": f"translate({c[2]}) scale({round(r / 10, ExportSVG.precision)},{round(r / 10, ExportSVG.precision)}) rotate({str(round(R.random() * 360))})",
+                                                    },
+                                                )
+                                            )
+                                        else:
+                                            vertices_group.add(
+                                                SVG_Element(
+                                                    "circle",
+                                                    {
+                                                        "cx": c[0],
+                                                        "cy": c[1],
+                                                        "r": r / 2,
+                                                        **properties_for_all_objects,
+                                                    },
+                                                )
+                                            )
 
                 #     # step value per object
                 #     lev = len(ver)
