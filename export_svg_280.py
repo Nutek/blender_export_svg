@@ -383,12 +383,17 @@ class ExportSVG(bpy.types.Operator):
 
             svg_doc = SVG_Document(sce.render.resolution_x, sce.render.resolution_y)
             # TODO: Remove it after task completion
-            svg_doc.add(SVG_Element('rect', {
-                'width': sce.render.resolution_x,
-                'height': sce.render.resolution_y,
-                'style':"fill:none;stroke-width:1%;stroke:rgb(200,200,200)"
-            }))
-            
+            svg_doc.add(
+                SVG_Element(
+                    "rect",
+                    {
+                        "width": sce.render.resolution_x,
+                        "height": sce.render.resolution_y,
+                        "style": "fill:none;stroke-width:1%;stroke:rgb(200,200,200)",
+                    },
+                )
+            )
+
             properties_for_all_objects = {
                 "opacity": str(round(wm.col_opacity, ExportSVG.precision))
             }
@@ -566,10 +571,10 @@ class ExportSVG(bpy.types.Operator):
                                             points += f"C{str_xy(bp[-1].handle_right)[2]}{str_xy(bp[0].handle_left)[2]}{str_xy(bp[0].co)[2]}z"
 
                                         props = {
-                                            'stroke':"black",
-                                            'opacity':".5",
-                                            'fill':"none",
-                                            'd': points,
+                                            "stroke": "black",
+                                            "opacity": ".5",
+                                            "fill": "none",
+                                            "d": points,
                                         }
                                         object_group.add(SVG_Element("path", props))
                                 bpy.data.curves.remove(cur)
@@ -655,23 +660,32 @@ class ExportSVG(bpy.types.Operator):
                         or wm.algo_shade == "nothing"
                     ):
                         # border width
-                        w = ""
+                        border_props = {}
                         stroke = ""
                         if wm.algo_edge != "nothing":
                             if wm.edge_wid:
-                                w = f' stroke-width="{str(wm.edge_wid)}px" stroke-linejoin="{wm.edge_join}" stroke-linecap="round"'
+                                border_props.update(
+                                    {
+                                        "stroke-width": f"{str(wm.edge_wid)}px",
+                                        "stroke-linejoin": f"{wm.edge_join}",
+                                        "stroke-linecap": "round",
+                                    }
+                                )
 
-                #         # border style
-                #         output_file(f'<g id="face_edges.{o.name}"{w}')
-                #         if wm.algo_edge == "linear":
-                #             output_file(' stroke="' + str_rgb(wm.col_3) + '">\n')
-                #         elif wm.algo_edge == "dashed":
-                #             u = str(1 + 3 * wm.edge_wid) + "," + str(1 + 1.5 * wm.edge_wid)
-                #             output_file(
-                #                 f' stroke="{str_rgb(wm.col_3)}" stroke-dasharray="{u}">\n'
-                #             )
-                #         else:
-                #             output_file(">\n")
+                        # border style
+                        if wm.algo_edge == "linear":
+                            border_props.update({"stroke": str_rgb(wm.col_3)})
+                        elif wm.algo_edge == "dashed":
+                            border_props.update(
+                                {
+                                    "stroke": str_rgb(wm.col_3),
+                                    "stroke-dasharray": f"{str(1 + 3 * wm.edge_wid)},{str(1 + 1.5 * wm.edge_wid)}",
+                                }
+                            )
+
+                        face_edges = SVG_Group(
+                            {"id": f"face_edges.{obj.name}", **border_props}
+                        )
 
                 #         # calculate step depth
                 #         if wm.algo_shade == "depth" or wm.use_effect == "explode":
