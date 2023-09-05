@@ -154,6 +154,7 @@ class SVG_Group(SVG_Element):
 
     def add(self, entity: SVG_Entity):
         self._components.append(entity)
+        return self
 
 
 class SVG_Document(SVG_Group):
@@ -199,17 +200,17 @@ class ExportSVG(bpy.types.Operator):
         center = (region.width / 2, region.height / 2)
         camera_coordinates = V3D.region_2d_to_origin_3d(region, region3d, center)
 
-        # col = M.Color((0, 0, 0))
+        col = M.Color((0, 0, 0))
 
-        # # use a plane named 'bisect' to cut meshes
-        # if wm.bisect in sce.objects:
-        #     bis = sce.objects.get(wm.bisect)
-        #     bis_co = bis.location
-        #     bis_no = Vector((0, 0, 1))
-        #     bis_no.rotate(bis.matrix_world)
-        #     bis.select_set(False)  ###
-        # else:
-        #     bis = False
+        # use a plane named 'bisect' to cut meshes
+        if wm.bisect in sce.objects:
+            bis = sce.objects.get(wm.bisect)
+            bis_co = bis.location
+            bis_no = Vector((0, 0, 1))
+            bis_no.rotate(bis.matrix_world)
+            bis.select_set(False)
+        else:
+            bis = False
 
         # define scale factor for ortogonal mode -> 1BU = 100px
         if orto and wm.auto_sca:
@@ -279,12 +280,11 @@ class ExportSVG(bpy.types.Operator):
             # str x - str y - str x,y - vector x,y - valido
 
         def vcol(col, r=0.25):
-            # ncol = col.copy()
-            # ncol.h = (ncol.h + R.random() * 2 * r - r) % 1
-            # ncol.s = max(0, min(1, ncol.s + 0.2 * R.triangular(-r, r)))
-            # ncol.v = max(0, min(1, ncol.v + 0.4 * R.triangular(-r, r)))
-            # return ncol
-            pass
+            ncol = col.copy()
+            ncol.h = (ncol.h + R.random() * 2 * r - r) % 1
+            ncol.s = max(0, min(1, ncol.s + 0.2 * R.triangular(-r, r)))
+            ncol.v = max(0, min(1, ncol.v + 0.4 * R.triangular(-r, r)))
+            return ncol
 
         def str_rgb(vector):
             r, g, b = vector[0], vector[1], vector[2]
@@ -334,17 +334,17 @@ class ExportSVG(bpy.types.Operator):
                 if wm.dissolver or wm.collapse < 1:
                     obj.modifiers.remove(mod)
 
-            # # use a plane named 'bisect' to cut meshes
-            # if bis:
-            #     bmesh.ops.bisect_plane(
-            #         bm,
-            #         geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
-            #         plane_co=bis_co,
-            #         plane_no=bis_no,
-            #         clear_outer=True,
-            #     )
+            # use a plane named 'bisect' to cut meshes
+            if bis:
+                bmesh.ops.bisect_plane(
+                    mesh,
+                    geom=mesh.verts[:] + mesh.edges[:] + mesh.faces[:],
+                    plane_co=bis_co,
+                    plane_no=bis_no,
+                    clear_outer=True,
+                )
 
-            # bm.normal_update()
+            mesh.normal_update()
             return mesh
 
         if wm.render_range == True:
@@ -413,36 +413,97 @@ class ExportSVG(bpy.types.Operator):
                 )
                 svg_doc.add(layer)
 
-                # # object to clone
-                # if wm.algo_vert != "nothing" and wm.use_clone:
-                #     clone = "X_" + str(R.choice(list(range(999))))
-                #     output_file(
-                #         f'<g id="{clone}" stroke-width="2"{opa} stroke="{str_rgb(wm.col_4)}">'
-                #         + '\n  <line x1="-10" y1="0" x2="10" y2="0" /><line x1="0" y1="10" x2="0" y2="-10" />\n</g>\n\n'
-                #     )
+                # object to clone
+                if wm.algo_vert != "nothing" and wm.use_clone:
+                    clone = "X_" + str(R.choice(list(range(999))))
+                    layer.add(
+                        SVG_Group(
+                            {
+                                "id": clone,
+                                "stroke-width": "2",
+                                "stroke": str_rgb(wm.col_4),
+                                **properties_for_all_objects,
+                            }
+                        )
+                        .add(
+                            SVG_Element(
+                                "line",
+                                {
+                                    "x1": "-10",
+                                    "y1": "0",
+                                    "x2": "10",
+                                    "y2": "0",
+                                },
+                            )
+                        )
+                        .add(
+                            SVG_Element(
+                                "line",
+                                {
+                                    "x1": "0",
+                                    "y1": "10",
+                                    "x2": "0",
+                                    "y2": "-10",
+                                },
+                            )
+                        )
+                    )
 
-                # # patrones de dashed
-                # if wm.algo_color == "pattern":
-                #     ran = str(R.randint(0, 999))
-                #     if wm.pat_col:
-                #         fondo = "none"
-                #     else:
-                #         fondo = str_rgb(wm.col_2)
-                #     output_file(
-                #         f'<g id="stripe{ran}">'
-                #         + f'<rect fill="{fondo}" x="0" y="0" height="10" width="1" />'
-                #         + f'<rect fill="{str_rgb(wm.col_3)}" x="0" y="0" height="2" width="1" />'
-                #         + "</g>\n\n<defs>\n"
-                #     )
-                #     c = [2.5, 3.5, 5, 7, 10]
-                #     for i in range(5):
-                #         output_file(
-                #             f'<pattern id="pat_{ran}_{str(i)}" patternUnits="userSpaceOnUse" width="1" '
-                #             + f'height="{str(c[i])}" patternTransform="rotate({str(R.randrange(-45, 45))}) scale({str(wm.pat_sca)})">'
-                #             + f'<use xlink:href="#stripe{ran}" />'
-                #             + "</pattern>\n"
-                #         )
-                #     output_file("</defs>\n\n")
+                # dashed pattern
+                if wm.algo_color == "pattern":
+                    ran = str(R.randint(0, 999))
+                    if wm.pat_col:
+                        background = "none"
+                    else:
+                        background = str_rgb(wm.col_2)
+                    layer.add(
+                        SVG_Group(
+                            {
+                                "id": f"stripe{ran}",
+                            }
+                        )
+                        .add(
+                            SVG_Element(
+                                "rect",
+                                {
+                                    "fill": background,
+                                    "x": "0",
+                                    "y": "0",
+                                    "height": "10",
+                                    "width": "1",
+                                },
+                            )
+                        )
+                        .add(
+                            SVG_Element(
+                                "rect",
+                                {
+                                    "fill": str_rgb(wm.col_3),
+                                    "x": "0",
+                                    "y": "0",
+                                    "height": "2",
+                                    "width": "1",
+                                },
+                            )
+                        )
+                    )
+
+                    definitions = SVG_Group(name="defs")
+                    c = [2.5, 3.5, 5, 7, 10]
+                    for i in range(5):
+                        definitions.add(
+                            SVG_Group(
+                                name="pattern",
+                                properties={
+                                    "id": f"pat_{ran}_{i}",
+                                    "patternUnits": "userSpaceOnUse",
+                                    "width": "1",
+                                    "height": c[i],
+                                    "patternTransform": f"rotate({R.randrange(-45, 45)}) scale({wm.pat_sca})",
+                                },
+                            ).add(SVG_Element("use", {"xlink:href": f"#stripe{ran}"}))
+                        )
+                    layer.add(definitions)
 
                 ## OPERATIONS AT MESH LEVEL >>
 
@@ -453,14 +514,17 @@ class ExportSVG(bpy.types.Operator):
                     if v3d_to_v2d(o.matrix_world.to_translation()) is not None
                 ]
 
-                # # sort objects by distance to viewer -usa object origin-
-                # if wm.order_obj:
-                #     distance = [
-                #         (round((cam_co - o.location).length_squared, 5), o.name)
-                #         for o in sel_valid
-                #     ]
-                #     distance.sort(reverse=True)
-                #     sel_valid = [sce.objects[d[1]] for d in distance]
+                # sort objects by distance to viewer -usa object origin-
+                if wm.order_obj:
+                    distance = [
+                        (
+                            round((camera_coordinates - o.location).length_squared, 5),
+                            o.name,
+                        )
+                        for o in valid_selected_objects
+                    ]
+                    distance.sort(reverse=True)
+                    valid_selected_objects = [sce.objects[d[1]] for d in distance]
 
                 grouped_objects = {
                     obj_type: list(objects)
@@ -472,34 +536,36 @@ class ExportSVG(bpy.types.Operator):
                 if len(grouped_objects) == 0:
                     self.report({"ERROR"}, f"No selected objects for frame {frame}!")
 
-                # # unite all objects into a single mesh
-                # if wm.join_objs and len(sel) > 1:
-                #     bpy.ops.object.select_all(action="DESELECT")
+                # unite all objects into a single mesh
+                if wm.join_objs and len(grouped_objects) > 1:
+                    bpy.ops.object.select_all(action="DESELECT")
 
-                #     for i, o in enumerate(sel):
-                #         depsgraph = bpy.context.evaluated_depsgraph_get()  ###
-                #         tmp = bpy.data.meshes.new_from_object(o.evaluated_get(depsgraph))
-                #         tmp.transform(o.matrix_world)  ###
+                    for i, o in enumerate(itertools.chhain(*grouped_objects.values())):
+                        depsgraph = bpy.context.evaluated_depsgraph_get()  ###
+                        tmp = bpy.data.meshes.new_from_object(
+                            o.evaluated_get(depsgraph)
+                        )
+                        tmp.transform(o.matrix_world)  ###
 
-                #         if not i:
-                #             join = bpy.data.objects.new("join", tmp)  ###
-                #             sce.collection.objects.link(join)
-                #         else:
-                #             add = bpy.data.objects.new("add", tmp)
-                #             sce.collection.objects.link(add)
-                #             add.select_set(True)
-                #             join.select_set(True)
-                #             context.view_layer.objects.active = join  ###
-                #             bpy.ops.object.join()
-                #             try:
-                #                 bpy.data.meshes.remove(tmp)  ###
-                #             except:
-                #                 pass
-                #     sel = [join]
+                        if not i:
+                            join = bpy.data.objects.new("join", tmp)  ###
+                            sce.collection.objects.link(join)
+                        else:
+                            add = bpy.data.objects.new("add", tmp)
+                            sce.collection.objects.link(add)
+                            add.select_set(True)
+                            join.select_set(True)
+                            context.view_layer.objects.active = join  ###
+                            bpy.ops.object.join()
+                            try:
+                                bpy.data.meshes.remove(tmp)  ###
+                            except:
+                                pass
+                    grouped_objects[ObjectTypes.Mesh] = [join]
 
-                # # overlap beziers
-                # if wm.use_bezier:
-                #     bez = ""
+                # overlap beziers
+                if wm.use_bezier:
+                    bez = ""
 
                 # mesh loop
                 print(grouped_objects)
@@ -509,7 +575,7 @@ class ExportSVG(bpy.types.Operator):
                     ObjectTypes.Surface,
                 ]
                 for obj in itertools.chain(
-                    *list(map(lambda key: grouped_objects.get(key, []), types_to_get))
+                    *map(lambda key: grouped_objects.get(key, []), types_to_get)
                 ):
                     # convert objects + mesh modifiers
                     line = render_line(obj)
@@ -661,13 +727,12 @@ class ExportSVG(bpy.types.Operator):
                     ):
                         # border width
                         border_props = {}
-                        stroke = ""
                         if wm.algo_edge != "nothing":
                             if wm.edge_wid:
                                 border_props.update(
                                     {
-                                        "stroke-width": f"{str(wm.edge_wid)}px",
-                                        "stroke-linejoin": f"{wm.edge_join}",
+                                        "stroke-width": f"{wm.edge_wid}px",
+                                        "stroke-linejoin": wm.edge_join,
                                         "stroke-linecap": "round",
                                     }
                                 )
@@ -679,188 +744,218 @@ class ExportSVG(bpy.types.Operator):
                             border_props.update(
                                 {
                                     "stroke": str_rgb(wm.col_3),
-                                    "stroke-dasharray": f"{str(1 + 3 * wm.edge_wid)},{str(1 + 1.5 * wm.edge_wid)}",
+                                    "stroke-dasharray": f"{1 + 3 * wm.edge_wid},{1 + 1.5 * wm.edge_wid}",
                                 }
                             )
 
-                        face_edges = SVG_Group(
-                            {"id": f"face_edges.{obj.name}", **border_props}
+                        object_group.add(
+                            SVG_Group({"id": f"face_edges.{obj.name}", **border_props})
                         )
 
-                #         # calculate step depth
-                #         if wm.algo_shade == "depth" or wm.use_effect == "explode":
-                #             if len(P):
-                #                 range_value = (
-                #                     abs((distance[0][0] - distance[-1][0])) + 1e-05
-                #                 )
-                #             else:
-                #                 range_value = 0.5
-                #             # if wm.algo_shade == 'depth':
-                #             # col = vcol(wm.col_1, wm.col_noise)
+                        # calculate step depth
+                        if wm.algo_shade == "depth" or wm.use_effect == "explode":
+                            if len(P):
+                                range_value = (
+                                    abs((distance[0][0] - distance[-1][0])) + 1e-05
+                                )
+                            else:
+                                range_value = 0.5
+                            # if wm.algo_shade == 'depth':
+                            #     col = vcol(wm.col_1, wm.col_noise)
 
-                #         # object color
+                        # object color
+                        if wm.algo_color == "object":
+                            colobj = vcol(wm.col_1, wm.col_noise)
 
-                #         if wm.algo_color == "object":
-                #             colobj = vcol(wm.col_1, wm.col_noise)
+                        elif wm.algo_color == "obj_pallete":
+                            colobj = R.choice(
+                                [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
+                            )
 
-                #         elif wm.algo_color == "obj_pallete":
-                #             colobj = R.choice(
-                #                 [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
-                #             )
+                        # loop faces ------------------------------------------------------>
+                        for i, f in enumerate(P):
+                            if wm.algo_shade == "depth" or wm.use_effect == "explode":
+                                dis = (distance[0][0] - distance[i][0]) / range_value
 
-                #         # loop faces ------------------------------------------------------>
+                            # apply color by faces
+                            if (
+                                wm.algo_color == "object"
+                                or wm.algo_color == "obj_pallete"
+                            ):
+                                col = colobj
 
-                #         for i, f in enumerate(P):
-                #             if wm.algo_shade == "depth" or wm.use_effect == "explode":
-                #                 dis = (distance[0][0] - distance[i][0]) / range_value
+                            elif wm.algo_color == "faces":
+                                col = vcol(wm.col_2, 0.01 + wm.col_noise / 2)
 
-                #             # apply color by faces
+                            elif wm.algo_color == "face_pallete":
+                                col = R.choice(
+                                    [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
+                                )
 
-                #             if wm.algo_color == "object" or wm.algo_color == "obj_pallete":
-                #                 col = colobj
+                            elif wm.algo_color == "material":
+                                sl = mesh.faces[f].material_index
+                                if obj.material_slots and obj.material_slots[sl].name:
+                                    col = M.Color(
+                                        obj.material_slots[sl].material.diffuse_color[
+                                            :-1
+                                        ]
+                                    )
+                                    col = vcol(col, wm.col_noise)
+                                else:
+                                    col = wm.col_1
 
-                #             elif wm.algo_color == "faces":
-                #                 col = vcol(wm.col_2, 0.01 + wm.col_noise / 2)
+                            elif wm.algo_color == "indices":
+                                val = round(f / len(mesh.faces), ExportSVG.precision)
+                                col.r = 1 - val
+                                col.g = col.b = val
 
-                #             elif wm.algo_color == "face_pallete":
-                #                 col = R.choice(
-                #                     [wm.col_1, wm.col_2, wm.col_3, wm.col_4, wm.col_5]
-                #                 )
+                            elif wm.algo_color == "pattern":
+                                n = int(5.25 * abs(FF[f][3]) - 0.5)
+                                if n > 4:
+                                    fill = background
+                                else:
+                                    fill = "url(#pat_" + ran + "_" + str(n) + ")"
 
-                #             elif wm.algo_color == "material":
-                #                 sl = mes.faces[f].material_index
-                #                 if o.material_slots and o.material_slots[sl].name:
-                #                     col = M.Color(
-                #                         o.material_slots[sl].material.diffuse_color[:-1]
-                #                     )
-                #                     col = vcol(col, wm.col_noise)
-                #                 else:
-                #                     col = wm.col_1
+                            # apply shading
 
-                #             elif wm.algo_color == "indices":
-                #                 val = round(f / len(mes.faces), ExportSVG.precision)
-                #                 col.r = 1 - val
-                #                 col.g = col.b = val
+                            col_copy = col.copy()
 
-                #             elif wm.algo_color == "pattern":
-                #                 n = int(5.25 * abs(FF[f][3]) - 0.5)
-                #                 if n > 4:
-                #                     fill = fondo
-                #                 else:
-                #                     fill = "url(#pat_" + ran + "_" + str(n) + ")"
+                            if wm.algo_shade == "back_light":
+                                dot = abs(FF[f][3])
+                                col_copy.v = max(1 - dot, 0.001)
+                                col_copy.s *= dot
 
-                #             # aplicar sombreado
+                            elif wm.algo_shade == "front_light":
+                                dot = abs(FF[f][3])
+                                col_copy.v = dot
+                                col_copy.s *= 1 - dot
 
-                #             copiacol = col.copy()
+                            elif wm.algo_shade == "indices":
+                                val = round(f / len(mesh.faces), ExportSVG.precision)
+                                col_copy.v = 1 - val
+                                col_copy.s = 0.75 - val / 2
 
-                #             if wm.algo_shade == "back_light":
-                #                 dot = abs(FF[f][3])
-                #                 copiacol.v = max(1 - dot, 0.001)
-                #                 copiacol.s *= dot
+                            elif wm.algo_shade == "color_ramp":
+                                dot = abs(FF[f][3])
+                                col_copy.v = dot
+                                col_copy.h = math.modf(col_copy.h + dot)[0]
 
-                #             elif wm.algo_shade == "front_light":
-                #                 dot = abs(FF[f][3])
-                #                 copiacol.v = dot
-                #                 copiacol.s *= 1 - dot
+                            elif wm.algo_shade == "soft_shading":
+                                dot = abs(FF[f][3])
+                                col_copy.v = dot
 
-                #             elif wm.algo_shade == "indices":
-                #                 val = round(f / len(mes.faces), ExportSVG.precision)
-                #                 copiacol.v = 1 - val
-                #                 copiacol.s = 0.75 - val / 2
+                            elif wm.algo_shade == "posterize":
+                                dot = round(abs(FF[f][3]) * wm.pos_step)
+                                col_copy.v = dot / wm.pos_step
 
-                #             elif wm.algo_shade == "color_ramp":
-                #                 dot = abs(FF[f][3])
-                #                 copiacol.v = dot
-                #                 copiacol.h = math.modf(copiacol.h + dot)[0]
+                            elif wm.algo_shade == "depth":
+                                col_copy.v = dis
+                                col_copy.s = dis * col.s
 
-                #             elif wm.algo_shade == "soft_shading":
-                #                 dot = abs(FF[f][3])
-                #                 copiacol.v = dot
+                            elif wm.algo_shade == "backfaces":
+                                dot = (FF[f][3]) < 0
+                                col_copy.v = 0.5 * dot + 0.25
 
-                #             elif wm.algo_shade == "posterize":
-                #                 dot = round(abs(FF[f][3]) * wm.pos_step)
-                #                 copiacol.v = dot / wm.pos_step
+                            if wm.algo_color != "pattern":
+                                fill = str_rgb(col_copy)
 
-                #             elif wm.algo_shade == "depth":
-                #                 copiacol.v = dis
-                #                 copiacol.s = dis * col.s
+                            if wm.algo_color == "nothing":
+                                fill = "none"
 
-                #             elif wm.algo_shade == "backfaces":
-                #                 dot = (FF[f][3]) < 0
-                #                 copiacol.v = 0.5 * dot + 0.25
+                            # edge per face
+                            stroke_properties = {}
+                            if wm.algo_color != "nothing" or wm.algo_shade == "pattern":
+                                if wm.algo_edge == "match_fill":
+                                    stroke_properties["stroke"] = fill
 
-                #             if wm.algo_color != "pattern":
-                #                 fill = str_rgb(copiacol)
+                            # draw the vertices of the faces
+                            if wm.use_effect == "nothing" or wm.use_effect == "explode":
+                                polygon_properties = {
+                                    **stroke_properties,
+                                    **properties_for_all_objects,
+                                    "fill": fill,
+                                }
+                                points = ""
+                                for v in mesh.faces[f].verts:
+                                    if wm.use_effect == "explode":
+                                        m = Vector(
+                                            (
+                                                ExportSVG.noise(0, wm.fac_noise),
+                                                ExportSVG.noise(0, wm.fac_noise),
+                                                (ExportSVG.noise(0, wm.fac_noise)),
+                                            )
+                                        )
+                                        test = str_xy(verts[v.index].co + m / 50)
+                                        if test[4]:
+                                            points += str(test[2])
+                                    else:
+                                        points += str(QQ[v.index][2])
+                                polygon_properties["points"] = points
 
-                #             if wm.algo_color == "nothing":
-                #                 fill = "none"
+                                if wm.use_effect == "explode":
+                                    try:
+                                        m = (
+                                            str(FF[i][1][0])
+                                            + ","
+                                            + str(-FF[i][1][1] + region.height)
+                                        )
+                                    except:
+                                        m = "0,0"
+                                    polygon_properties[
+                                        "transform"
+                                    ] = f"rotate({str(dis * ExportSVG.noise(0, wm.fac_expl))},{m})"
 
-                #             # edge per face
-                #             if wm.algo_color != "nothing" or wm.algo_shade == "pattern":
-                #                 if wm.algo_edge == "match_fill":
-                #                     stroke = f' stroke="{fill}"'
+                                object_group.add(
+                                    SVG_Element("polygon", polygon_properties)
+                                )
 
-                #             # draw the vertices of the faces
-                #             if wm.use_effect == "nothing" or wm.use_effect == "explode":
-                #                 output_file(f'  <polygon{stroke} fill="{fill}" points="')
-                #                 for v in mes.faces[f].verts:
-                #                     if wm.use_effect == "explode":
-                #                         m = Vector(
-                #                             (
-                #                                 noise(0, wm.fac_noise),
-                #                                 noise(0, wm.fac_noise),
-                #                                 (noise(0, wm.fac_noise)),
-                #                             )
-                #                         )
-                #                         test = str_xy(ver[v.index].co + m / 50)
-                #                         if test[4]:
-                #                             output_file(test[2])
-                #                     else:
-                #                         output_file(str(QQ[v.index][2]))
+                            else:
+                                dot = abs(FF[f][3])
+                                delta = FF[f][4]
+                                a = math.sqrt(mesh.faces[f].calc_area())
+                                l = (
+                                    a
+                                    * dot
+                                    * 100
+                                    * wm.shape_size
+                                    / delta
+                                    * wm.svg_scale
+                                    / (1 + 25 * orto)
+                                )  ####
+                                xy = str_xy(FF[f][0])
+                                x = float(xy[0])
+                                y = float(xy[1])
 
-                #                 if wm.use_effect == "explode":
-                #                     try:
-                #                         m = (
-                #                             str(FF[i][1][0])
-                #                             + ","
-                #                             + str(-FF[i][1][1] + region.height)
-                #                         )
-                #                     except:
-                #                         m = "0,0"
-                #                     output_file(
-                #                         f'"{opa} transform="rotate({str(dis * noise(0, wm.fac_expl))},{m})" />\n'
-                #                     )
-                #                 else:
-                #                     output_file(f'" {opa} />\n')
+                                if wm.use_effect == "circles" and l > 1:
+                                    object_group.add(
+                                        SVG_Element(
+                                            "circle",
+                                            {
+                                                **stroke_properties,
+                                                **properties_for_all_objects,
+                                                "fill": fill,
+                                                "cx": x,
+                                                "cy": y,
+                                                "r": l,
+                                            },
+                                        )
+                                    )
 
-                #             else:
-                #                 dot = abs(FF[f][3])
-                #                 delta = FF[f][4]
-                #                 a = math.sqrt(mes.faces[f].calc_area())
-                #                 l = (
-                #                     a
-                #                     * dot
-                #                     * 100
-                #                     * wm.shape_size
-                #                     / delta
-                #                     * wm.svg_scale
-                #                     / (1 + 25 * orto)
-                #                 )  ####
-                #                 xy = str_xy(FF[f][0])
-                #                 x = float(xy[0])
-                #                 y = float(xy[1])
-
-                #                 if wm.use_effect == "circles" and l > 1:
-                #                     output_file(
-                #                         f'  <circle cx="{x}" cy="{y}" r="{l}" {stroke} fill="{fill}" {opa} />\n'
-                #                     )
-
-                #                 if wm.use_effect == "squares" and l > 1:
-                #                     output_file(
-                #                         f'  <rect x="{x - l}" y="{y - l}" width="{l * 2}" height="{l * 2}" {stroke} fill="{fill}" {opa} />\n'
-                #                     )
-
-                #         output_file("</g>\n\n")
+                                if wm.use_effect == "squares" and l > 1:
+                                    object_group.add(
+                                        SVG_Element(
+                                            "rect",
+                                            {
+                                                **stroke_properties,
+                                                **properties_for_all_objects,
+                                                "fill": fill,
+                                                "x": x - l,
+                                                "y": y - l,
+                                                "width": l * 2,
+                                                "height": l * 2,
+                                            },
+                                        )
+                                    )
 
                 #     # draw vertices as circles / clones
                 #     if wm.algo_vert != "nothing":
