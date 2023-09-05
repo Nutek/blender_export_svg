@@ -1029,31 +1029,39 @@ class ExportSVG(bpy.types.Operator):
                                                 )
                                             )
 
-                #     # step value per object
-                #     lev = len(ver)
-                #     if lev:
-                #         offset = R.randrange(0, lev)
-                #     extra = R.randrange(0, wm.curve_var + 1)
+                    # step value per object
+                    lev = len(verts)
+                    if lev:
+                        offset = R.randrange(0, lev)
+                    extra = R.randrange(0, wm.curve_var + 1)
 
-                #     # path vertices -step + variation-
-                #     if wm.vert_conn and len(ver) > 1:
-                #         i = 1
-                #         off = offset
-                #         c = str_xy(ver[off].co)
-                #         if c[4]:
-                #             output_file(
-                #                 f'<path id="path.{o.name}" d="M {c[0]},{c[1]} {wm.curve} '
-                #             )
-                #             while i <= lev:  ####
-                #                 if i + off >= lev:
-                #                     off -= lev
-                #                 c = str_xy(ver[i + off].co)
-                #                 if c[4]:
-                #                     output_file(c[2])
-                #                 i += wm.curve_step + extra
-                #             output_file(
-                #                 f' z" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
-                #             )
+                    # path vertices -step + variation-
+                    if wm.vert_conn and len(verts) > 1:
+                        i = 1
+                        off = offset
+                        c = str_xy(verts[off].co)
+                        if c[4]:
+                            data = f"M {c[0]},{c[1]} {wm.curve} "
+                            while i <= lev:
+                                if i + off >= lev:
+                                    off -= lev
+                                c = str_xy(verts[i + off].co)
+                                if c[4]:
+                                    data += c[2]
+                                i += wm.curve_step + extra
+                            data += " z"
+
+                            object_group.add(
+                                SVG_Element(
+                                    "path",
+                                    {
+                                        "id": f"path.{obj.name}",
+                                        "stroke": str_rgb(wm.col_5),
+                                        "fill": "none",
+                                        "d": data,
+                                    },
+                                )
+                            )
 
                 #     # number vertices -step + variation-
                 #     if wm.use_num and len(ver) > 1:
