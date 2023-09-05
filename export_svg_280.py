@@ -1003,7 +1003,7 @@ class ExportSVG(bpy.types.Operator):
                                     else:
                                         # algo: use distance on an axis
                                         if wm.ver_spa == "local":
-                                            matriz = o.matrix_world.to_translation()
+                                            matriz = obj.matrix_world.to_translation()
                                             z = abs(
                                                 verts[v].co[int(wm.ver_axis)]
                                                 - matriz[int(wm.ver_axis)]
@@ -1016,7 +1016,7 @@ class ExportSVG(bpy.types.Operator):
                                         )
 
                                     # draw vertices
-                                    c = str_xy(vertices_group[v].co)
+                                    c = str_xy(verts[v].co)
                                     if r >= 1:
                                         if wm.use_clone:
                                             vertices_group.add(
@@ -1076,6 +1076,7 @@ class ExportSVG(bpy.types.Operator):
                             )
 
                     # number vertices -step + variation-
+                    verts.ensure_lookup_table()
                     if wm.use_num and len(verts) > 1:
                         i = 1
                         off = offset
