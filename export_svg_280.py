@@ -576,8 +576,7 @@ class ExportSVG(bpy.types.Operator):
                     grouped_objects[ObjectTypes.Mesh] = [join]
 
                 # overlap beziers
-                if wm.use_bezier:
-                    bez = ""
+                bezier_outline = []
 
                 # mesh loop
                 print(grouped_objects)
@@ -615,7 +614,7 @@ class ExportSVG(bpy.types.Operator):
                                 "fill": "none",
                                 "d": points,
                             }
-                            object_group.add(SVG_Element("path", props))
+                            bezier_outline.append(SVG_Element("path", props))
 
                         # overlap beziers
                         if wm.use_bezier and line[1]:
@@ -1262,9 +1261,9 @@ class ExportSVG(bpy.types.Operator):
                     # release mesh memory
                     mesh.free()
 
-                # # overlap beziers
-                # if wm.use_bezier:
-                #     output_file(bez)
+                # overlap beziers
+                if wm.use_bezier:
+                    map(layer.add, bezier_outline)
 
                 # ## OBJECT LEVEL OPERATIONS >>
 
