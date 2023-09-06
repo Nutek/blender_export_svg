@@ -1108,99 +1108,159 @@ class ExportSVG(bpy.types.Operator):
 
                             object_group.add(text_group)
 
-                #     # extra solid border
-                #     if wm.extra_bordes != "nothing":
-                #         edg = mes.edges
-                #         output_file(
-                #             f'<g id="bordes.{o.name}" stroke="{str_rgb(wm.col_6)}" stroke-linecap="round" fill="none">\n'
-                #         )
+                    # extra solid border
+                    if wm.extra_bordes != "nothing":
+                        borders_group = SVG_Group(
+                            {
+                                "id": f"bordes.{o.name}",
+                                "stroke": str_rgb(wm.col_6),
+                                "stroke-linecap": "round",
+                                "fill": "none",
+                            }
+                        )
+                        object_group.add(borders_group)
 
-                #         for e in edg:
-                #             vis = True
-                #             if e.verts[0].index not in V or e.verts[1].index not in V:
-                #                 vis = False
-                #             if wm.use_boundary:
-                #                 vis = e.is_boundary
-                #             if vis:
-                #                 vis = e.calc_face_angle(1.5708) > wm.stroke_ang
-                #             if vis:
-                #                 v1 = str_xy(ver[e.verts[1].index].co)[3]
-                #                 v2 = str_xy(ver[e.verts[0].index].co)[3]
-                #                 delta = v1 - v2
-                #                 le = delta.length * wm.svg_scale
-                #                 if le > wm.min_len:
-                #                     # mover los extremos
-                #                     if wm.extra_bordes == "extender":
-                #                         if wm.edg_displ:
-                #                             v1 += delta * wm.edg_displ
-                #                             v2 -= delta * wm.edg_displ
-                #                         if wm.edg_noise:
-                #                             v1 += delta * (noise(0, wm.edg_noise))
-                #                             v2 -= delta * (noise(0, wm.edg_noise))
-                #                     if wm.extra_bordes == "brush":
-                #                         w = wm.stroke_wid + le / 25
-                #                         v1 -= delta * w / 250
-                #                         v2 += delta * w / 250
+                        edg = mesh.edges
 
-                #                     a, b = str(round(v1[0], ExportSVG.precision)), str(
-                #                         round(v1[1], ExportSVG.precision)
-                #                     )
-                #                     c, d = str(round(v2[0], ExportSVG.precision)), str(
-                #                         round(v2[1], ExportSVG.precision)
-                #                     )
+                        for e in edg:
+                            vis = True
+                            if e.verts[0].index not in V or e.verts[1].index not in V:
+                                vis = False
+                            if wm.use_boundary:
+                                vis = e.is_boundary
+                            if vis:
+                                vis = e.calc_face_angle(1.5708) > wm.stroke_ang
+                            if vis:
+                                v1 = str_xy(verts[e.verts[1].index].co)[3]
+                                v2 = str_xy(verts[e.verts[0].index].co)[3]
+                                delta = v1 - v2
+                                le = delta.length * wm.svg_scale
+                                if le > wm.min_len:
+                                    # mover los extremos
+                                    if wm.extra_bordes == "extender":
+                                        if wm.edg_displ:
+                                            v1 += delta * wm.edg_displ
+                                            v2 -= delta * wm.edg_displ
+                                        if wm.edg_noise:
+                                            v1 += delta * (
+                                                ExportSVG.noise(0, wm.edg_noise)
+                                            )
+                                            v2 -= delta * (
+                                                ExportSVG.noise(0, wm.edg_noise)
+                                            )
+                                    if wm.extra_bordes == "brush":
+                                        w = wm.stroke_wid + le / 25
+                                        v1 -= delta * w / 250
+                                        v2 += delta * w / 250
 
-                #                     if wm.extra_bordes == "extender":
-                #                         output_file(
-                #                             f'  <line stroke-width="{str(round(wm.stroke_wid, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
-                #                         )
+                                    a, b = str(round(v1[0], ExportSVG.precision)), str(
+                                        round(v1[1], ExportSVG.precision)
+                                    )
+                                    c, d = str(round(v2[0], ExportSVG.precision)), str(
+                                        round(v2[1], ExportSVG.precision)
+                                    )
 
-                #                     elif wm.extra_bordes == "curved_strokes":
-                #                         v3 = (
-                #                             v1
-                #                             - delta / 2
-                #                             + Vector(
-                #                                 (
-                #                                     noise(0, le * wm.cur_noise),
-                #                                     noise(0, le * wm.cur_noise),
-                #                                 )
-                #                             )
-                #                         )
-                #                         e, f = str(round(v3[0], ExportSVG.precision)), str(
-                #                             round(v3[1], ExportSVG.precision)
-                #                         )
-                #                         output_file(
-                #                             f'  <path stroke-width="{str(round(wm.stroke_wid, 2))}" d="M {a} {b} Q {e},{f} {c},{d}" />\n'
-                #                         )
+                                    if wm.extra_bordes == "extender":
+                                        borders_group.add(
+                                            SVG_Element(
+                                                "line",
+                                                {
+                                                    "stroke-width": round(
+                                                        wm.stroke_wid, 2
+                                                    ),
+                                                    "x1": a,
+                                                    "y1": b,
+                                                    "x2": c,
+                                                    "y2": d,
+                                                },
+                                            )
+                                        )
+                                    elif wm.extra_bordes == "curved_strokes":
+                                        v3 = (
+                                            v1
+                                            - delta / 2
+                                            + Vector(
+                                                (
+                                                    ExportSVG.noise(
+                                                        0, le * wm.cur_noise
+                                                    ),
+                                                    ExportSVG.noise(
+                                                        0, le * wm.cur_noise
+                                                    ),
+                                                )
+                                            )
+                                        )
+                                        e, f = str(
+                                            round(v3[0], ExportSVG.precision)
+                                        ), str(round(v3[1], ExportSVG.precision))
+                                        borders_group.add(
+                                            SVG_Element(
+                                                "path",
+                                                {
+                                                    "stroke-width": round(
+                                                        wm.stroke_wid, 2
+                                                    ),
+                                                    "d": "M {a} {b} Q {e},{f} {c},{d}",
+                                                },
+                                            )
+                                        )
+                                    elif wm.extra_bordes == "brush":
+                                        r1, r2 = Vector(
+                                            (
+                                                ExportSVG.noise(0, w),
+                                                ExportSVG.noise(0, w),
+                                            )
+                                        ), Vector(
+                                            (
+                                                ExportSVG.noise(0, w),
+                                                ExportSVG.noise(0, w),
+                                            )
+                                        )
+                                        v3, v4 = (
+                                            v1 - delta / 2 + r1,
+                                            v1 - delta / 2 + r2,
+                                        )
+                                        e, f = str(
+                                            round(v3[0], ExportSVG.precision)
+                                        ), str(round(v3[1], ExportSVG.precision))
+                                        g, h = str(
+                                            round(v4[0], ExportSVG.precision)
+                                        ), str(round(v4[1], ExportSVG.precision))
+                                        borders_group.add(
+                                            SVG_Element(
+                                                "path",
+                                                {
+                                                    "fill": str_rgb(wm.col_6),
+                                                    "d": "M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}",
+                                                },
+                                            )
+                                        )
+                                    else:  # outline
+                                        W = visible(mesh, e.verts[0].index, "vertice")[
+                                            3
+                                        ]
+                                        W += visible(mesh, e.verts[1].index, "vertice")[
+                                            3
+                                        ]
+                                        W = 10 - round(abs(W * 5), ExportSVG.precision)
+                                        if W > wm.stroke_con * 9:
+                                            borders_group.add(
+                                                SVG_Element(
+                                                    "line",
+                                                    {
+                                                        "stroke-width": round(
+                                                            W * wm.stroke_wid / 5, 2
+                                                        ),
+                                                        "x1": a,
+                                                        "y1": b,
+                                                        "x2": c,
+                                                        "y2": d,
+                                                    },
+                                                )
+                                            )
 
-                #                     elif wm.extra_bordes == "brush":
-                #                         r1, r2 = Vector((noise(0, w), noise(0, w))), Vector(
-                #                             (noise(0, w), noise(0, w))
-                #                         )
-                #                         v3, v4 = v1 - delta / 2 + r1, v1 - delta / 2 + r2
-                #                         e, f = str(round(v3[0], ExportSVG.precision)), str(
-                #                             round(v3[1], ExportSVG.precision)
-                #                         )
-                #                         g, h = str(round(v4[0], ExportSVG.precision)), str(
-                #                             round(v4[1], ExportSVG.precision)
-                #                         )
-                #                         output_file(
-                #                             f'  <path fill="{str_rgb(wm.col_6)}" d="M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}" />\n'
-                #                         )
-
-                #                     else:  # outline
-                #                         W = visible(mes, e.verts[0].index, "vertice")[3]
-                #                         W += visible(mes, e.verts[1].index, "vertice")[3]
-                #                         W = 10 - round(abs(W * 5), ExportSVG.precision)
-                #                         if W > wm.stroke_con * 9:
-                #                             output_file(
-                #                                 f'  <line stroke-width="{str(round(W * wm.stroke_wid / 5, 2))}" x1="{a}" y1="{b}" x2="{c}" y2="{d}" />\n'
-                #                             )
-                #         output_file("</g>\n\n")
-
-                #     output_file(f"</g>  <!-- end {o.name} -->\n\n")
-
-                #     # release mesh memory
-                #     mes.free()
+                    # release mesh memory
+                    mesh.free()
 
                 # # overlap beziers
                 # if wm.use_bezier:
