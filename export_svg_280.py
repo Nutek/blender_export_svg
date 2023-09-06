@@ -373,9 +373,9 @@ class ExportSVG(bpy.types.Operator):
 
             begin_frame_time = time.time()
 
-            # if not wm.use_seed:
-            #     wm.ran_seed = R.randrange(0, 9999)
-            # R.seed(wm.ran_seed)
+            if not wm.use_seed:
+                wm.ran_seed = R.randrange(0, 9999)
+            R.seed(wm.ran_seed)
 
             # # increment file..?
             # if wm.use_continue:
