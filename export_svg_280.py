@@ -1330,33 +1330,42 @@ class ExportSVG(bpy.types.Operator):
                                 )
                             )
 
-                # # continuous line object
-                # if wm.obj_conn:
-                #     if len(OO) > 1:
-                #         for i, c in enumerate(OO[:-1]):
-                #             if i == 0:
-                #                 output_file(
-                #                     f'  <path id="object.union" d="M {c[0]},{c[1]} {wm.curve} '
-                #                 )
-                #             else:
-                #                 output_file(c[2])
-                #             if wm.curve != "L":
-                #                 delta = OO[i + 1][3] - c[3]
-                #                 le = round(delta.length) * 5
-                #                 cc = (
-                #                     c[3]
-                #                     + delta / 2
-                #                     + Vector(
-                #                         (
-                #                             noise(0, le * wm.cur_noise),
-                #                             noise(0, le * wm.cur_noise),
-                #                         )
-                #                     )
-                #                 )
-                #                 output_file(str(cc[0]) + "," + str(cc[1]) + " ")
-                #         output_file(
-                #             f'{OO[-1][2]}" stroke="{str_rgb(wm.col_5)}" fill="none" />\n\n'
-                #         )
+                # continuous line object
+                if wm.obj_conn:
+                    if len(OO) > 1:
+                        points = "M"
+                        for i, c in enumerate(OO[:-1]):
+                            if i == 0:
+                                points += f" {c[0]},{c[1]} {wm.curve} "
+                            else:
+                                points += str(c[2])
+                            if wm.curve != "L":
+                                delta = OO[i + 1][3] - c[3]
+                                le = round(delta.length) * 5
+                                cc = (
+                                    c[3]
+                                    + delta / 2
+                                    + Vector(
+                                        (
+                                            ExportSVG.noise(0, le * wm.cur_noise),
+                                            ExportSVG.noise(0, le * wm.cur_noise),
+                                        )
+                                    )
+                                )
+                                points = f"{cc[0]},{cc[1]} "
+                        points += f"{OO[-1][2]}"
+
+                        layer.add(
+                            SVG_Element(
+                                "path",
+                                {
+                                    "id": "object.union",
+                                    "stroke": str_rgb(wm.col_5),
+                                    "fill": "none",
+                                    "d": points,
+                                },
+                            )
+                        )
 
                 # # draw hierarchies / object relations
                 # if wm.obj_rel:
