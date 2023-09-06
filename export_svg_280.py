@@ -1265,38 +1265,70 @@ class ExportSVG(bpy.types.Operator):
                 if wm.use_bezier:
                     map(layer.add, bezier_outline)
 
-                # ## OBJECT LEVEL OPERATIONS >>
+                ## OBJECT LEVEL OPERATIONS >>
 
-                # OO = [str_xy(o.matrix_world.to_translation()) for o in sel_valid]
+                OO = [
+                    str_xy(o.matrix_world.to_translation())
+                    for o in valid_selected_objects
+                ]
 
-                # # origin as a circle / name
-                # if wm.use_origin:
-                #     output_file(f'<g id="object.origin" fill="{str_rgb(wm.col_5)}">\n')
-                #     for i, o in enumerate(sel_valid):
-                #         s = max(
-                #             0.5,
-                #             abs(o.dimensions[0] * wm.obj_x)
-                #             + abs(o.dimensions[1] * wm.obj_y)
-                #             + abs(o.dimensions[2] * wm.obj_z),
-                #         )
-                #         n = wm.obj_x + wm.obj_y + wm.obj_z
-                #         if n:
-                #             s /= n
-                #         else:
-                #             s = 1
-                #         r = round(wm.svg_scale * s * wm.diam2, ExportSVG.precision)
-                #         c = OO[i]
-                #         if wm.use_name:
-                #             output_file(
-                #                 f'  <text font-size="{str(round(wm.fon_size * r / 10, 1))}" text-anchor="middle"{opa} transform = "rotate({str(round(noise(0, s * 2)))},{c[2]})" '
-                #                 + f'x="{c[0]}" y="{c[1]}">{str(o.name)}</text>\n'
-                #             )
-                #         else:
-                #             output_file(
-                #                 f'  <circle cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r)}" />\n'
-                #                 + f'  <circle fill="{str_rgb(vcol(wm.col_2))}" cx="{c[0]}" cy="{c[1]}"{opa} r="{str(r / 2)}" />\n'
-                #             )
-                #     output_file("</g>\n\n")
+                # origin as a circle / name
+                if wm.use_origin:
+                    object_origins_group = SVG_Group(
+                        {"id": "object.origin", "fill": str_rgb(wm.col_5)}
+                    )
+                    layer.add(object_origins_group)
+                    for i, o in enumerate(valid_selected_objects):
+                        s = max(
+                            0.5,
+                            abs(o.dimensions[0] * wm.obj_x)
+                            + abs(o.dimensions[1] * wm.obj_y)
+                            + abs(o.dimensions[2] * wm.obj_z),
+                        )
+                        n = wm.obj_x + wm.obj_y + wm.obj_z
+                        if n:
+                            s /= n
+                        else:
+                            s = 1
+                        r = round(wm.svg_scale * s * wm.diam2, ExportSVG.precision)
+                        c = OO[i]
+                        if wm.use_name:
+                            object_origins_group.add(
+                                SVG_Text(
+                                    str(o.name),
+                                    {
+                                        "font-size": round(wm.fon_size * r / 10, 1),
+                                        "text-anchor": "middle",
+                                        "transform": f"rotate({str(round(ExportSVG.noise(0, s * 2)))},{c[2]})",
+                                        "x": c[0],
+                                        "y": c[1],
+                                        **properties_for_all_objects,
+                                    },
+                                )
+                            )
+                        else:
+                            object_origins_group.add(
+                                SVG_Element(
+                                    "circle",
+                                    {
+                                        "cx": c[0],
+                                        "cy": c[1],
+                                        "r": r,
+                                        **properties_for_all_objects,
+                                    },
+                                )
+                            ).add(
+                                SVG_Element(
+                                    "circle",
+                                    {
+                                        "fill": str_rgb(vcol(wm.col_2)),
+                                        "cx": c[0],
+                                        "cy": c[1],
+                                        "r": r / 2,
+                                        **properties_for_all_objects,
+                                    },
+                                )
+                            )
 
                 # # continuous line object
                 # if wm.obj_conn:
