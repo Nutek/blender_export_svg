@@ -1367,19 +1367,25 @@ class ExportSVG(bpy.types.Operator):
                             )
                         )
 
-                # # draw hierarchies / object relations
-                # if wm.obj_rel:
-                #     output_file(
-                #         f'<g id="relaciones" stroke="{str_rgb(wm.col_5)}" fill="none">\n'
-                #     )
-                #     for i, o in enumerate(sel_valid):
-                #         if o.parent:
-                #             h = str_xy(o.matrix_world.to_translation())
-                #             p = str_xy(o.parent.matrix_world.to_translation())
-                #             output_file(
-                #                 f'  <path id="rel.{o.name}.{o.parent.name}" d="M {p[2]}" />\n'
-                #             )
-                #     output_file("</g>\n")
+                # draw hierarchies / object relations
+                if wm.obj_rel:
+                    relations_group = SVG_Group(
+                        {"id": "relations", "stroke": str_rgb(wm.col_5), "fill": "none"}
+                    )
+                    layer.add(relations_group)
+                    for i, o in enumerate(valid_selected_objects):
+                        if o.parent:
+                            h = str_xy(o.matrix_world.to_translation())
+                            p = str_xy(o.parent.matrix_world.to_translation())
+                            relations_group.add(
+                                SVG_Element(
+                                    "path",
+                                    {
+                                        "id": f"rel.{o.name}.{o.parent.name}",
+                                        "d": f"M {p[2]}",
+                                    },
+                                )
+                            )
 
                 # output_file("</g>\n\n</svg>\n\n")
 
