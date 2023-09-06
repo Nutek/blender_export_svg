@@ -1387,17 +1387,16 @@ class ExportSVG(bpy.types.Operator):
                                 )
                             )
 
-                # output_file("</g>\n\n</svg>\n\n")
+                # cleaning temporary object from 'join'
+                if wm.join_objs:  ### and len(sel) > 1
+                    for o in valid_selected_objects:
+                        o.select_set(True)
+                    context.view_layer.objects.active = valid_selected_objects[-1]
+                    tmp = join.data
+                    sce.collection.objects.unlink(join)
+                    bpy.data.objects.remove(join)
+                    bpy.data.meshes.remove(tmp)
 
-                # # eliminar objeto temporal 'join'
-                # if wm.join_objs:  ### and len(sel) > 1
-                #     for o in sel_valid:
-                #         o.select_set(True)
-                #     context.view_layer.objects.active = sel_valid[-1]  ###
-                #     tmp = join.data
-                #     sce.collection.objects.unlink(join)
-                #     bpy.data.objects.remove(join)
-                #     bpy.data.meshes.remove(tmp)
                 output_file.write(str(svg_doc))
 
             print(
