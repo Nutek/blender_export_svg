@@ -1,7 +1,7 @@
-from export_svg_280 import *
+from ..export_svg_280 import *
 import pytest
 
-from test_helpers import *
+from .test_helpers import *
 
 
 class TestBasicTagsAttributeFormat:
