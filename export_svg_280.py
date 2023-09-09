@@ -21,6 +21,13 @@ from collections.abc import Iterable
 #####################################################################
 
 
+# 2D helpers
+class Size2D:
+    def __init__(self, width: float, height: float):
+        self.width = width
+        self.height = height
+
+
 def frames_with_file_path(frame_numbers: Iterable, output_path: str):
     fill_size = len(str(max(frame_numbers)))
     basename_path, extension = os.path.splitext(output_path)
@@ -182,6 +189,26 @@ class SVG_Document(SVG_Group):
             },
         )
         self._components = []
+
+
+def write_full_svg(output_file, size: Size2D, svg_entities: []):
+    svg_doc = SVG_Document(size.width, size.height)
+
+    # TODO: Remove it after task completion
+    svg_doc.add(
+        SVG_Element(
+            "rect",
+            {
+                "width": size.width,
+                "height": size.height,
+                "style": "fill:none;stroke-width:1%;stroke:rgb(200,200,200)",
+            },
+        )
+    )
+
+    for entity in svg_entities:
+        svg_doc.add(entity)
+    output_file.write(str(svg_doc))
 
 
 #####################################################################
@@ -367,6 +394,8 @@ class ExportSVG(bpy.types.Operator):
             frame_list = [(sce.frame_current, output_file_path)]
         restore_frame = sce.frame_current
 
+        open_file_mode = "r+" if wm.use_continue else "w"
+
         ## LOOP ANIMATION
         for frame, output_file_path in frame_list:
             sce.frame_set(frame)
@@ -377,53 +406,16 @@ class ExportSVG(bpy.types.Operator):
                 wm.ran_seed = R.randrange(0, 9999)
             R.seed(wm.ran_seed)
 
-            # # increment file..?
-            # if wm.use_continue:
-            #     try:
-            #         read_output_file = open(new_path, "r")
-            #         data = read_output_file.readlines()
-            #         read_output_file.close()
-            #     except:
-            #         closing = "nothing"
-            #     try:
-            #         closing = data[-2]
-            #     except:
-            #         closing = "empty"
-            #     if closing != "</svg>\n":
-            #         wm.use_continue = False
-            #         return {"FINISHED"}
-
-            svg_doc = SVG_Document(sce.render.resolution_x, sce.render.resolution_y)
-            # TODO: Remove it after task completion
-            svg_doc.add(
-                SVG_Element(
-                    "rect",
-                    {
-                        "width": sce.render.resolution_x,
-                        "height": sce.render.resolution_y,
-                        "style": "fill:none;stroke-width:1%;stroke:rgb(200,200,200)",
-                    },
-                )
-            )
-
             properties_for_all_objects = {
                 "opacity": str(round(wm.col_opacity, ExportSVG.precision))
             }
-            # open file for writing
-            with open(output_file_path, "w") as output_file:
-                svg_doc.add(SVG_Entity(TAT_Comment("new blender session")))
-                # if wm.use_continue:
-                #     for nl in data[:-3]:
-                #         output_file(nl)
-                # else:
-                #  # Refactored
-                #     pass
 
+            # open file
+            with open(output_file_path, open_file_mode) as output_file:
                 # new inkscape layer
                 layer = SVG_Group(
                     {"inkscape:groupmode": "layer", "id": str(time.asctime())}
                 )
-                svg_doc.add(layer)
 
                 # object to clone
                 if wm.algo_vert != "nothing" and wm.use_clone:
@@ -1397,7 +1389,37 @@ class ExportSVG(bpy.types.Operator):
                     bpy.data.objects.remove(join)
                     bpy.data.meshes.remove(tmp)
 
-                output_file.write(str(svg_doc))
+                new_session_comment = SVG_Entity(TAT_Comment("new blender session"))
+                total_write = lambda: write_full_svg(
+                    output_file,
+                    Size2D(sce.render.resolution_x, sce.render.resolution_y),
+                    [new_session_comment, layer],
+                )
+
+                if wm.use_continue:
+                    whole_content = output_file.read()
+
+                    output_file.seek(0, os.SEEK_SET)
+                    previous, separator, rest = whole_content.rpartition("</svg>")
+                    if len(separator):
+                        output_file.write(
+                            "\n".join(
+                                [
+                                    previous,
+                                    new_session_comment.export().format_string(
+                                        Spacer(1)
+                                    ),
+                                    layer.export().format_string(Spacer(1)),
+                                    separator,
+                                    rest,
+                                ]
+                            )
+                        )
+                    else:
+                        total_write()
+                        output_file.write(rest)
+                else:
+                    total_write()
 
             print(
                 "Frame", frame, ">", round(time.time() - begin_frame_time, 4), "seconds"
