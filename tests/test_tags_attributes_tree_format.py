@@ -12,6 +12,20 @@ class TestBasicTagsAttributeFormat:
         node = TAT_Node(input_name)
         assert get_trimmed_lines(node) == [expected]
 
+    @pytest.mark.parametrize("name", ["", "2abc", "a::b", "a:b:c", "a:2b", "2a:b"])
+    def test_element_raises_exception_for_invalid_name(self, name):
+        with pytest.raises(ValueError):
+            TAT_Node(name)
+
+    @pytest.mark.parametrize("name", [None, 123, 0.4, {}])
+    def test_element_raises_exception_for_invalid_type_of_name(self, name):
+        with pytest.raises(TypeError):
+            TAT_Node(name)
+
+    @pytest.mark.parametrize("name", ["_", "_1", "a:b", "_a:_b"])
+    def test_element_raises_no_exception_for_valid_name(self, name):
+        TAT_Node(name)
+
     @pytest.mark.parametrize(
         "attributes,expected",
         [
@@ -29,6 +43,40 @@ class TestBasicTagsAttributeFormat:
         node.add_attrs(**attributes)
 
         assert get_trimmed_lines(node) == expected
+
+    @pytest.mark.parametrize("name", [None, 123, 0.4, {}])
+    def test_element_raises_exception_for_invalid_type_of_attribute_name(self, name):
+        node = TAT_Node("element")
+        with pytest.raises(TypeError):
+            node.add_attrs(**{name: "value"})
+
+    @pytest.mark.parametrize("value", [None, {}])
+    def test_element_raises_exception_for_invalid_type_of_attribute_value(self, value):
+        node = TAT_Node("element")
+        with pytest.raises(TypeError):
+            node.add_attrs(**{"name": value})
+
+    @pytest.mark.parametrize("name", ["", "2abc", "a::b", "a:b:c", "a:2b", "2a:b"])
+    def test_element_raises_exception_for_invalid_attribute_name(self, name):
+        node = TAT_Node("element")
+        with pytest.raises(ValueError):
+            node.add_attrs(**{name: "value"})
+
+    @pytest.mark.parametrize("value", ['"', "<", ">"])
+    def test_element_raises_exception_for_invalid_attribute_value(self, value):
+        node = TAT_Node("element")
+        with pytest.raises(ValueError):
+            node.add_attrs(**{"name": value})
+
+    @pytest.mark.parametrize("name", ["_", "_1", "a:b", "_a:_b"])
+    def test_element_raises_no_exception_for_valid_attribute_name(self, name):
+        node = TAT_Node("element")
+        node.add_attrs(**{name: "value"})
+
+    @pytest.mark.parametrize("value", ["", 123, 0.4, "123.456", "%^$&#*@()_=+-"])
+    def test_element_raises_no_exception_for_valid_attribute_value(self, value):
+        node = TAT_Node("element")
+        node.add_attrs(**{"name": value})
 
     @pytest.mark.parametrize(
         "label,expected",

@@ -7,10 +7,8 @@ bl_info = {
     "category": "Import-Export",
 }
 
-import bpy, bmesh, os, math, time
+import bpy, bmesh, os, math, time, re, itertools
 import mathutils as M, random as R, bpy_extras
-import itertools
-import operator
 from bpy_extras import view3d_utils as V3D
 from mathutils import Vector
 from collections.abc import Iterable
@@ -65,6 +63,16 @@ class Spacer:
 # TagsAttributesTree
 class TAT_Defaults:
     spacer = Spacer(0, 1)
+    name_pattern = r"([_A-Za-z][_A-Za-z0-9]*)(:[_A-Za-z][_A-Za-z0-9]*)?"
+    attr_value_pattern = r"[^\"\<\>]*"
+
+
+def validate_string_value(value, pattern, valid_types: []):
+    if valid_types and type(value) not in valid_types:
+        raise TypeError(f"Expected type `{valid_types}`; given: {type(value)}")
+
+    if isinstance(value, str) and not re.fullmatch(pattern, value):
+        raise ValueError(f"Value does not fit to pattern: {pattern}; given: {value}")
 
 
 class TAT_Entity:
@@ -81,6 +89,7 @@ class TAT_Entity:
 class TAT_Node(TAT_Entity):
     def __init__(self, name):
         super().__init__()
+        validate_string_value(name, TAT_Defaults.name_pattern, [str])
         self._name = name
         self._children = []
         self._attributes = {}
@@ -111,6 +120,10 @@ class TAT_Node(TAT_Entity):
 
     def add_attrs(self, **attrs):
         for name, value in attrs.items():
+            validate_string_value(name, TAT_Defaults.name_pattern, [str])
+            validate_string_value(
+                value, TAT_Defaults.attr_value_pattern, [str, int, float]
+            )
             self._attributes[name] = value
         return self
 
