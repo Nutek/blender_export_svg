@@ -26,8 +26,7 @@ class TestBasicTagsAttributeFormat:
     def test_empty_element_with_attributes(self, attributes, expected):
         node = TAT_Node("element")
 
-        for k, v in attributes.items():
-            node.add_attr(k, v)
+        node.add_attrs(**attributes)
 
         assert get_trimmed_lines(node) == expected
 
@@ -51,7 +50,7 @@ class TestTagsAttributeFormatNesting:
 
     def test_contains_element_with_attributes(self):
         inner = TAT_Node("inner")
-        inner.add_attr("my_attr", "my_value")
+        inner.add_attrs(my_attr="my_value")
         node = TAT_Node("root")
         node.add_node(inner)
         assert get_trimmed_lines(node) == [
@@ -118,9 +117,9 @@ class TestTagsAttributeFormatChaining:
     def test_adding_attributes_by_chaining(self):
         node = (
             TAT_Node("root")
-            .add_attr("attr1", "val1")
+            .add_attrs(attr1="val1")
             .add_attrs(attr2="val2")
-            .add_attr("attr3", "val3")
+            .add_attrs(attr3="val3")
         )
         assert get_trimmed_lines(node) == [
             '<root attr1="val1" attr2="val2" attr3="val3" />',

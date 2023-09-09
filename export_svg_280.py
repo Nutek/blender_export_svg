@@ -113,13 +113,9 @@ class TAT_Node(TAT_Entity):
             self.add_node(tag)
         return self
 
-    def add_attr(self, name: str, value):
-        self._attributes[name] = value
-        return self
-
     def add_attrs(self, **attrs):
         for name, value in attrs.items():
-            self.add_attr(name, value)
+            self._attributes[name] = value
         return self
 
 
