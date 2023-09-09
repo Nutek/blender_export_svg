@@ -104,13 +104,9 @@ class TAT_Node(TAT_Entity):
             ]
         )
 
-    def add_node(self, tag):
-        self._children.append(tag)
-        return self
-
     def add_nodes(self, *tags):
         for tag in tags:
-            self.add_node(tag)
+            self._children.append(tag)
         return self
 
     def add_attrs(self, **attrs):

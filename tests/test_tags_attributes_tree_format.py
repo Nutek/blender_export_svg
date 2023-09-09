@@ -45,14 +45,14 @@ class TestBasicTagsAttributeFormat:
 class TestTagsAttributeFormatNesting:
     def test_contains_empty_element(self):
         node = TAT_Node("root")
-        node.add_node(TAT_Node("inner"))
+        node.add_nodes(TAT_Node("inner"))
         assert get_trimmed_lines(node) == ["<root>", "<inner />", "</root>"]
 
     def test_contains_element_with_attributes(self):
         inner = TAT_Node("inner")
         inner.add_attrs(my_attr="my_value")
         node = TAT_Node("root")
-        node.add_node(inner)
+        node.add_nodes(inner)
         assert get_trimmed_lines(node) == [
             "<root>",
             '<inner my_attr="my_value" />',
@@ -61,11 +61,11 @@ class TestTagsAttributeFormatNesting:
 
     def test_format_with_proper_indent(self):
         node = TAT_Node("root")
-        node.add_node(TAT_Node("inner"))
+        node.add_nodes(TAT_Node("inner"))
         nested = TAT_Node("nested")
-        nested.add_node(TAT_Node("inner"))
-        nested.add_node(TAT_Comment("text"))
-        node.add_node(nested)
+        nested.add_nodes(TAT_Node("inner"))
+        nested.add_nodes(TAT_Comment("text"))
+        node.add_nodes(nested)
         assert (
             str(node)
             == "<root>\n <inner />\n <nested>\n  <inner />\n  <!-- text -->\n </nested>\n</root>"
@@ -102,9 +102,9 @@ class TestTagsAttributeFormatChaining:
     def test_adding_nodes_by_chaining(self):
         node = (
             TAT_Node("root")
-            .add_node(TAT_Node("inner1"))
+            .add_nodes(TAT_Node("inner1"))
             .add_nodes(TAT_Node("inner2"))
-            .add_node(TAT_Node("inner3"))
+            .add_nodes(TAT_Node("inner3"))
         )
         assert get_trimmed_lines(node) == [
             "<root>",
