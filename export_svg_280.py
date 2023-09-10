@@ -63,16 +63,19 @@ class Spacer:
 # TagsAttributesTree
 class TAT_Defaults:
     spacer = Spacer(0, 1)
-    name_pattern = r"([_A-Za-z][_A-Za-z0-9]*)(:[_A-Za-z][_A-Za-z0-9]*)?"
+    name_pattern = r"([_A-Za-z][_\-A-Za-z0-9]*)(:[_A-Za-z][_\-A-Za-z0-9]*)?"
     attr_value_pattern = r"[^\"\<\>]*"
+    comment_pattern = r"((?!--).)+"
 
 
-def validate_string_value(value, pattern, valid_types: []):
+def validate_value(value, str_pattern=None, valid_types=[]):
     if valid_types and type(value) not in valid_types:
         raise TypeError(f"Expected type `{valid_types}`; given: {type(value)}")
 
-    if isinstance(value, str) and not re.fullmatch(pattern, value):
-        raise ValueError(f"Value does not fit to pattern: {pattern}; given: {value}")
+    if str_pattern and isinstance(value, str) and not re.fullmatch(str_pattern, value):
+        raise ValueError(
+            f"Value does not fit to pattern: {str_pattern}; given: {value}"
+        )
 
 
 class TAT_Entity:
@@ -89,7 +92,7 @@ class TAT_Entity:
 class TAT_Node(TAT_Entity):
     def __init__(self, name):
         super().__init__()
-        validate_string_value(name, TAT_Defaults.name_pattern, [str])
+        validate_value(name, TAT_Defaults.name_pattern, [str])
         self._name = name
         self._children = []
         self._attributes = {}
@@ -115,15 +118,27 @@ class TAT_Node(TAT_Entity):
 
     def add_nodes(self, *tags):
         for tag in tags:
-            self._children.append(tag)
+            if issubclass(type(tag), TAT_Entity):
+                self._children.append(tag)
+            elif type(tag) is list:
+                self.add_nodes(*tag)
+            elif tag is None:
+                continue
+            else:
+                raise TypeError(
+                    f"Expected type is subclass of TAT_Entity or list of such types; Given type: {type(tag)}"
+                )
         return self
 
-    def add_attrs(self, **attrs):
+    def add_attrs(self, *dicts, **attrs):
+        for d in dicts:
+            if d is None:
+                continue
+            validate_value(d, valid_types=[dict])
+            self.add_attrs(**d)
         for name, value in attrs.items():
-            validate_string_value(name, TAT_Defaults.name_pattern, [str])
-            validate_string_value(
-                value, TAT_Defaults.attr_value_pattern, [str, int, float]
-            )
+            validate_value(name, TAT_Defaults.name_pattern, [str])
+            validate_value(value, TAT_Defaults.attr_value_pattern, [str, int, float])
             self._attributes[name] = value
         return self
 
@@ -131,6 +146,7 @@ class TAT_Node(TAT_Entity):
 class TAT_Comment(TAT_Entity):
     def __init__(self, content):
         super().__init__()
+        validate_value(content, TAT_Defaults.comment_pattern, [str, int, float])
         self._content = content
 
     def format_string(self, spacer: Spacer = Spacer(0, 1)):
@@ -156,7 +172,7 @@ class SVG_Element(SVG_Entity):
         self._properties = properties
 
     def export(self) -> TAT_Entity:
-        return TAT_Node(self._name).add_attrs(**self._properties)
+        return TAT_Node(self._name).add_attrs(self._properties)
 
 
 class SVG_Text(SVG_Element):
@@ -165,7 +181,7 @@ class SVG_Text(SVG_Element):
         self._text = text
 
     def export(self):
-        return super().export().add_node(TAT_Entity(self._text))
+        return super().export().add_nodes(TAT_Entity(self._text))
 
 
 class SVG_Group(SVG_Element):
@@ -174,7 +190,7 @@ class SVG_Group(SVG_Element):
         self._components = []
 
     def export(self) -> TAT_Entity:
-        return super().export().add_nodes(*[c.export() for c in self._components])
+        return super().export().add_nodes([c.export() for c in self._components])
 
     def add(self, entity: SVG_Entity):
         self._components.append(entity)

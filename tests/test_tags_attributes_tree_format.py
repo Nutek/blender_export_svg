@@ -89,6 +89,20 @@ class TestBasicTagsAttributeFormat:
         node = TAT_Comment(label)
         assert get_trimmed_lines(node) == expected
 
+    @pytest.mark.parametrize("content", [None, {}])
+    def test_comment_raises_exception_for_invalid_type(self, content):
+        with pytest.raises(TypeError):
+            TAT_Comment(content)
+
+    @pytest.mark.parametrize("content", ["", "gfgd--ghfs", "--ghfs", "gfgd--"])
+    def test_comment_raises_exception_for_invalid_value(self, content):
+        with pytest.raises(ValueError):
+            TAT_Comment(content)
+
+    @pytest.mark.parametrize("content", [123, 0.4, "fgfds-<>!fdsgf-"])
+    def test_comment_raises_no_exception_for_other_values(self, content):
+        TAT_Comment(content)
+
 
 class TestTagsAttributeFormatNesting:
     def test_contains_empty_element(self):
@@ -120,10 +134,20 @@ class TestTagsAttributeFormatNesting:
         )
 
 
-class TestTagsAttributeFormatMultipleAddition:
-    def test_adding_multiple_nodes(self):
+class TestTagsAttributeFormatMultipleAdditionSyntax:
+    def test_adding_multiple_nodes_by_positional_parameters(self):
         node = TAT_Node("root")
         node.add_nodes(TAT_Node("inner1"), TAT_Node("inner2"))
+        assert get_trimmed_lines(node) == [
+            "<root>",
+            "<inner1 />",
+            "<inner2 />",
+            "</root>",
+        ]
+
+    def test_adding_multiple_nodes_by_list(self):
+        node = TAT_Node("root")
+        node.add_nodes([TAT_Node("inner1"), TAT_Node("inner2")])
         assert get_trimmed_lines(node) == [
             "<root>",
             "<inner1 />",
@@ -140,9 +164,16 @@ class TestTagsAttributeFormatMultipleAddition:
 
     def test_adding_multiple_attributes_by_map(self):
         node = TAT_Node("root")
-        node.add_attrs(**{"name:attr1": "val1", "name:attr2": "val2"})
+        node.add_attrs({"name:attr1": "val1", "name:attr2": "val2"})
         assert get_trimmed_lines(node) == [
             '<root name:attr1="val1" name:attr2="val2" />',
+        ]
+
+    def test_adding_None_instead_multiple_attributes(self):
+        node = TAT_Node("root")
+        node.add_attrs(None)
+        assert get_trimmed_lines(node) == [
+            "<root />",
         ]
 
 
