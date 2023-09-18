@@ -306,7 +306,6 @@ class ExportSVG(bpy.types.Operator):
                     dis = M.geometry.distance_point_to_plane(
                         val, camera_coordinates, ojo
                     )
-                    dot = -dot
                 else:
                     dis = (camera_coordinates - val).length
             elif type == "vertice":
