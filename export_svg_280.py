@@ -426,9 +426,10 @@ class ExportSVG(bpy.types.Operator):
                 wm.ran_seed = R.randrange(0, 9999)
             R.seed(wm.ran_seed)
 
-            properties_for_all_objects = {
-                "opacity": str(round(wm.col_opacity, ExportSVG.precision))
-            }
+            properties_for_all_objects = {}
+            opacity = round(wm.col_opacity, ExportSVG.precision)
+            if not math.isclose(opacity, 1, abs_tol=0.01):
+                properties_for_all_objects["opacity"] = opacity
 
             # open file
             with open(output_file_path, open_file_mode) as output_file:
