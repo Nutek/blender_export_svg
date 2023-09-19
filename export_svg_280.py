@@ -174,6 +174,15 @@ class SVG_Element(SVG_Entity):
     def export(self) -> TAT_Entity:
         return TAT_Node(self._name).add_attrs(self._properties)
 
+    def set_props(self, *dicts, **properties):
+        for d in dicts:
+            if d is None:
+                continue
+            self.set_props(**d)
+        for name, value in properties.items():
+            self._properties[name] = value
+        return self
+
 
 class SVG_Text(SVG_Element):
     def __init__(self, text: str, properties: dict = {}):
@@ -770,9 +779,7 @@ class ExportSVG(bpy.types.Operator):
                                 }
                             )
 
-                        object_group.add(
-                            SVG_Group({"id": f"face_edges.{obj.name}", **border_props})
-                        )
+                        object_group.set_props(border_props)
 
                         # calculate step depth
                         if wm.algo_shade == "depth" or wm.use_effect == "explode":
@@ -1724,7 +1731,7 @@ bpy.types.WindowManager.algo_edge = bpy.props.EnumProperty(
     items=[
         ("nothing", "0. Nothing", "Skip from export"),
         ("linear", "1. Linear", "Regular Edges"),
-        ("dashed", "2. Dotted", "Dotted lines"),
+        ("dashed", "2. Dashed", "Dashed lines"),
         (
             "match_fill",
             "3. Match Fill",
