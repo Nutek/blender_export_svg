@@ -562,10 +562,11 @@ class ExportSVG(bpy.types.Operator):
                     self.report({"ERROR"}, f"No selected objects for frame {frame}!")
 
                 # unite all objects into a single mesh
-                if wm.join_objs and len(grouped_objects) > 1:
+                join = None
+                if wm.join_objs and len(valid_selected_objects) > 1:
                     bpy.ops.object.select_all(action="DESELECT")
 
-                    for i, o in enumerate(itertools.chhain(*grouped_objects.values())):
+                    for i, o in enumerate(itertools.chain(*grouped_objects.values())):
                         depsgraph = bpy.context.evaluated_depsgraph_get()  ###
                         tmp = bpy.data.meshes.new_from_object(
                             o.evaluated_get(depsgraph)
@@ -1398,7 +1399,7 @@ class ExportSVG(bpy.types.Operator):
                             )
 
                 # cleaning temporary object from 'join'
-                if wm.join_objs:  ### and len(sel) > 1
+                if wm.join_objs and join:
                     for o in valid_selected_objects:
                         o.select_set(True)
                     context.view_layer.objects.active = valid_selected_objects[-1]
