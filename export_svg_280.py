@@ -306,7 +306,6 @@ class ExportSVG(bpy.types.Operator):
                     dis = M.geometry.distance_point_to_plane(
                         val, camera_coordinates, ojo
                     )
-                    dot = -dot
                 else:
                     dis = (camera_coordinates - val).length
             elif type == "vertice":
@@ -709,10 +708,7 @@ class ExportSVG(bpy.types.Operator):
 
                     # order the faces according to distance to the viewer -use centroid-
                     distance = [(round(FF[f][4], ExportSVG.precision), f) for f in P]
-                    if orto:
-                        distance.sort()
-                    else:
-                        distance.sort(reverse=True)
+                    distance.sort(reverse=True)
                     P = [d[1] for d in distance]
 
                     # remove vertices inside faces with 3 or 4 edges -see extend to ngons-

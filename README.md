@@ -64,6 +64,11 @@ Rise a ticket with label `feature_proposal` proposal. It will be discussed if Co
 
 ## Release notes
 
+### vX.X.X
+
+- Fix for ordering faces in orthogonal view
+- Fix for face filtering in orthogonal view
+
 ### v0.0.1
 
 - original version of script for Blender 2.80
