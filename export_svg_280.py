@@ -1222,7 +1222,7 @@ class ExportSVG(bpy.types.Operator):
                                                     "stroke-width": round(
                                                         wm.stroke_wid, 2
                                                     ),
-                                                    "d": "M {a} {b} Q {e},{f} {c},{d}",
+                                                    "d": f"M {a} {b} Q {e},{f} {c},{d}",
                                                 },
                                             )
                                         )
@@ -1253,7 +1253,7 @@ class ExportSVG(bpy.types.Operator):
                                                 "path",
                                                 {
                                                     "fill": str_rgb(wm.col_6),
-                                                    "d": "M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}",
+                                                    "d": f"M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}",
                                                 },
                                             )
                                         )
