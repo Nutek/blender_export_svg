@@ -254,7 +254,8 @@ class ExportSVG(bpy.types.Operator):
 
     precision = 4
 
-    def noise(self, a, b):
+    @staticmethod
+    def noise(a, b):
         return round(R.gauss(a, b), ExportSVG.precision)
 
     def execute(self, context):
@@ -1133,7 +1134,7 @@ class ExportSVG(bpy.types.Operator):
                     if wm.extra_bordes != "nothing":
                         borders_group = SVG_Group(
                             {
-                                "id": f"bordes.{o.name}",
+                                "id": f"bordes.{obj.name}",
                                 "stroke": str_rgb(wm.col_6),
                                 "stroke-linecap": "round",
                                 "fill": "none",
