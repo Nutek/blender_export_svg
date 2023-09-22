@@ -779,7 +779,11 @@ class ExportSVG(bpy.types.Operator):
                                 }
                             )
 
-                        object_group.set_props(border_props)
+                        if len(border_props):
+                            face_output_group = SVG_Group(border_props)
+                            object_group.add(face_output_group)
+                        else:
+                            face_output_group = object_group
 
                         # calculate step depth
                         if wm.algo_shade == "depth" or wm.use_effect == "explode":
@@ -934,7 +938,7 @@ class ExportSVG(bpy.types.Operator):
                                         "transform"
                                     ] = f"rotate({str(dis * ExportSVG.noise(0, wm.fac_expl))},{m})"
 
-                                object_group.add(
+                                face_output_group.add(
                                     SVG_Element("polygon", polygon_properties)
                                 )
 
@@ -956,7 +960,7 @@ class ExportSVG(bpy.types.Operator):
                                 y = float(xy[1])
 
                                 if wm.use_effect == "circles" and l > 1:
-                                    object_group.add(
+                                    face_output_group.add(
                                         SVG_Element(
                                             "circle",
                                             {
@@ -971,7 +975,7 @@ class ExportSVG(bpy.types.Operator):
                                     )
 
                                 if wm.use_effect == "squares" and l > 1:
-                                    object_group.add(
+                                    face_output_group.add(
                                         SVG_Element(
                                             "rect",
                                             {
