@@ -246,6 +246,18 @@ def write_full_svg(output_file, size: Size2D, svg_entities: []):
 #####################################################################
 
 
+class CleanObject:
+    def __init__(self, mesh_object, scene):
+        self._mesh_object = mesh_object
+        self._scene = scene
+
+    def __call__(self) -> None:
+        tmp = self._mesh_object.data
+        self._scene.collection.objects.unlink(self._mesh_object)
+        bpy.data.objects.remove(self._mesh_object)
+        bpy.data.meshes.remove(tmp)
+
+
 class ExportSVG(bpy.types.Operator):
     bl_idname = "export.svg"
     bl_label = "Export SVG"
@@ -258,7 +270,19 @@ class ExportSVG(bpy.types.Operator):
     def noise(a, b):
         return round(R.gauss(a, b), ExportSVG.precision)
 
+    @staticmethod
+    def set_selection_state(context, active_object, new_selected_objects):
+        for o in list(context.selected_objects):
+            o.select_set(False)
+
+        for o in new_selected_objects:
+            o.select_set(True)
+
+        context.view_layer.objects.active = active_object
+
     def execute(self, context):
+        clean_ups = []
+
         sce = bpy.context.scene
         region = context.region
         region3d = context.space_data.region_3d
@@ -430,6 +454,15 @@ class ExportSVG(bpy.types.Operator):
         for frame, output_file_path in frame_list:
             sce.frame_set(frame)
 
+            # Schedule retrieval of selection state if something will be changed
+            active_object = context.view_layer.objects.active
+            selected_objects = list(context.selected_objects)
+            clean_ups.append(
+                lambda: ExportSVG.set_selection_state(
+                    context, active_object, selected_objects
+                )
+            )
+
             begin_frame_time = time.time()
 
             if not wm.use_seed:
@@ -576,16 +609,21 @@ class ExportSVG(bpy.types.Operator):
                 if wm.join_objs and len(valid_selected_objects) > 1:
                     bpy.ops.object.select_all(action="DESELECT")
 
-                    for i, o in enumerate(itertools.chain(*grouped_objects.values())):
+                    for o in itertools.chain(*grouped_objects.values()):
                         depsgraph = bpy.context.evaluated_depsgraph_get()  ###
-                        tmp = bpy.data.meshes.new_from_object(
-                            o.evaluated_get(depsgraph)
-                        )
+
+                        try:
+                            obj_eval = o.evaluated_get(depsgraph)
+                            tmp = bpy.data.meshes.new_from_object(obj_eval)
+                        except:
+                            continue
+
                         tmp.transform(o.matrix_world)  ###
 
-                        if not i:
+                        if join is None:
                             join = bpy.data.objects.new("join", tmp)  ###
                             sce.collection.objects.link(join)
+                            clean_ups.append(CleanObject(join, sce))
                         else:
                             add = bpy.data.objects.new("add", tmp)
                             sce.collection.objects.link(add)
@@ -1410,15 +1448,9 @@ class ExportSVG(bpy.types.Operator):
                                 )
                             )
 
-                # cleaning temporary object from 'join'
-                if wm.join_objs and join:
-                    for o in valid_selected_objects:
-                        o.select_set(True)
-                    context.view_layer.objects.active = valid_selected_objects[-1]
-                    tmp = join.data
-                    sce.collection.objects.unlink(join)
-                    bpy.data.objects.remove(join)
-                    bpy.data.meshes.remove(tmp)
+                # cleaning actions
+                for clean_up in reversed(clean_ups):
+                    clean_up()
 
                 new_session_comment = SVG_Entity(TAT_Comment("new blender session"))
                 total_write = lambda: write_full_svg(
