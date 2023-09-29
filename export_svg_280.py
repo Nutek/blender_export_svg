@@ -1,6 +1,6 @@
 bl_info = {
     "name": "Viewport to SVG",
-    "version": (0, 2, 1, 4),
+    "version": (0, 2, 1, 5),
     "blender": (2, 80, 0),
     "location": "View3D > Sidebar",
     "description": "Generate an SVG file from active view",
