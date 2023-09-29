@@ -597,7 +597,8 @@ class ExportSVG(bpy.types.Operator):
                 grouped_objects = {
                     obj_type: list(objects)
                     for obj_type, objects in itertools.groupby(
-                        valid_selected_objects, key=lambda o: o.type
+                        sorted(valid_selected_objects, key=lambda o: o.type),
+                        key=lambda o: o.type,
                     )
                 }
 
