@@ -14,6 +14,12 @@ from mathutils import Vector
 from collections.abc import Iterable
 
 
+# import matplotlib.pyplot as plt
+import numpy as np
+
+# import mpl_toolkits.mplot3d as m3d
+
+
 #####################################################################
 # General helpers
 #####################################################################
@@ -40,6 +46,7 @@ class ObjectTypes:
     Font = "FONT"
     Surface = "SURFACE"
     Meta = "META"
+    GPencil = "GPENCIL"
 
 
 #####################################################################
@@ -395,6 +402,7 @@ class ExportSVG(bpy.types.Operator):
                     mode_curve = True
                 if "BEZIER" in [s.type for s in obj.data.splines]:
                     mode_bezier = True
+            print(obj, obj.type, mode_curve, mode_bezier)
             return (mode_curve, mode_bezier)
 
         def object_2_bmesh(context, obj, convert=False):
@@ -601,6 +609,9 @@ class ExportSVG(bpy.types.Operator):
                         key=lambda o: o.type,
                     )
                 }
+
+                for o in valid_selected_objects:
+                    print(f"{o.type}: {o}")
 
                 if len(grouped_objects) == 0:
                     self.report({"ERROR"}, f"No selected objects for frame {frame}!")
@@ -1325,6 +1336,7 @@ class ExportSVG(bpy.types.Operator):
 
                 # overlap beziers
                 if wm.use_bezier:
+                    print(bezier_outline)
                     map(layer.add, bezier_outline)
 
                 ## OBJECT LEVEL OPERATIONS >>
@@ -2200,8 +2212,24 @@ bpy.types.WindowManager.render_range = bpy.props.BoolProperty(
     description="Export animation as a sequence of SVG files",
 )
 
+classes = (ExportSVG, OpenSVG, IncrSVG, ComprSVG, PanelSVG)
+
+
+def wrap_registers():
+    register, unregister = bpy.utils.register_classes_factory(classes)
+
+    def register_called():
+        register()
+        print("Register called")
+
+    def unregister_called():
+        unregister()
+        print("Unregister called")
+
+    return register_called, unregister_called
+
+
+register, unregister = wrap_registers()
 
 if __name__ == "__main__":
-    classes = (ExportSVG, OpenSVG, IncrSVG, ComprSVG, PanelSVG)
-    register, unregister = bpy.utils.register_classes_factory(classes)
     register()

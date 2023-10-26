@@ -1,2 +1,5 @@
 fake-bpy-module-3.3==20230117
 pytest==7.4.0
+matplotlib==3.8.0
+numpy==1.26.0
+ipython==8.16.1
