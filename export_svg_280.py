@@ -1,6 +1,6 @@
 bl_info = {
     "name": "Viewport to SVG",
-    "version": (0, 2, 1, 4),
+    "version": (0, 2, 1, 5),
     "blender": (2, 80, 0),
     "location": "View3D > Sidebar",
     "description": "Generate an SVG file from active view",
@@ -174,6 +174,15 @@ class SVG_Element(SVG_Entity):
     def export(self) -> TAT_Entity:
         return TAT_Node(self._name).add_attrs(self._properties)
 
+    def set_props(self, *dicts, **properties):
+        for d in dicts:
+            if d is None:
+                continue
+            self.set_props(**d)
+        for name, value in properties.items():
+            self._properties[name] = value
+        return self
+
 
 class SVG_Text(SVG_Element):
     def __init__(self, text: str, properties: dict = {}):
@@ -237,6 +246,18 @@ def write_full_svg(output_file, size: Size2D, svg_entities: []):
 #####################################################################
 
 
+class CleanObject:
+    def __init__(self, mesh_object, scene):
+        self._mesh_object = mesh_object
+        self._scene = scene
+
+    def __call__(self) -> None:
+        tmp = self._mesh_object.data
+        self._scene.collection.objects.unlink(self._mesh_object)
+        bpy.data.objects.remove(self._mesh_object)
+        bpy.data.meshes.remove(tmp)
+
+
 class ExportSVG(bpy.types.Operator):
     bl_idname = "export.svg"
     bl_label = "Export SVG"
@@ -245,10 +266,23 @@ class ExportSVG(bpy.types.Operator):
 
     precision = 4
 
-    def noise(self, a, b):
+    @staticmethod
+    def noise(a, b):
         return round(R.gauss(a, b), ExportSVG.precision)
 
+    @staticmethod
+    def set_selection_state(context, active_object, new_selected_objects):
+        for o in list(context.selected_objects):
+            o.select_set(False)
+
+        for o in new_selected_objects:
+            o.select_set(True)
+
+        context.view_layer.objects.active = active_object
+
     def execute(self, context):
+        clean_ups = []
+
         sce = bpy.context.scene
         region = context.region
         region3d = context.space_data.region_3d
@@ -420,15 +454,25 @@ class ExportSVG(bpy.types.Operator):
         for frame, output_file_path in frame_list:
             sce.frame_set(frame)
 
+            # Schedule retrieval of selection state if something will be changed
+            active_object = context.view_layer.objects.active
+            selected_objects = list(context.selected_objects)
+            clean_ups.append(
+                lambda: ExportSVG.set_selection_state(
+                    context, active_object, selected_objects
+                )
+            )
+
             begin_frame_time = time.time()
 
             if not wm.use_seed:
                 wm.ran_seed = R.randrange(0, 9999)
             R.seed(wm.ran_seed)
 
-            properties_for_all_objects = {
-                "opacity": str(round(wm.col_opacity, ExportSVG.precision))
-            }
+            properties_for_all_objects = {}
+            opacity = round(wm.col_opacity, ExportSVG.precision)
+            if not math.isclose(opacity, 1, abs_tol=0.01):
+                properties_for_all_objects["opacity"] = opacity
 
             # open file
             with open(output_file_path, open_file_mode) as output_file:
@@ -553,7 +597,8 @@ class ExportSVG(bpy.types.Operator):
                 grouped_objects = {
                     obj_type: list(objects)
                     for obj_type, objects in itertools.groupby(
-                        valid_selected_objects, key=lambda o: o.type
+                        sorted(valid_selected_objects, key=lambda o: o.type),
+                        key=lambda o: o.type,
                     )
                 }
 
@@ -561,19 +606,25 @@ class ExportSVG(bpy.types.Operator):
                     self.report({"ERROR"}, f"No selected objects for frame {frame}!")
 
                 # unite all objects into a single mesh
-                if wm.join_objs and len(grouped_objects) > 1:
+                join = None
+                if wm.join_objs and len(valid_selected_objects) > 1:
                     bpy.ops.object.select_all(action="DESELECT")
 
-                    for i, o in enumerate(itertools.chhain(*grouped_objects.values())):
+                    for o in itertools.chain(*grouped_objects.values()):
                         depsgraph = bpy.context.evaluated_depsgraph_get()  ###
-                        tmp = bpy.data.meshes.new_from_object(
-                            o.evaluated_get(depsgraph)
-                        )
+
+                        try:
+                            obj_eval = o.evaluated_get(depsgraph)
+                            tmp = bpy.data.meshes.new_from_object(obj_eval)
+                        except:
+                            continue
+
                         tmp.transform(o.matrix_world)  ###
 
-                        if not i:
+                        if join is None:
                             join = bpy.data.objects.new("join", tmp)  ###
                             sce.collection.objects.link(join)
+                            clean_ups.append(CleanObject(join, sce))
                         else:
                             add = bpy.data.objects.new("add", tmp)
                             sce.collection.objects.link(add)
@@ -768,9 +819,11 @@ class ExportSVG(bpy.types.Operator):
                                 }
                             )
 
-                        object_group.add(
-                            SVG_Group({"id": f"face_edges.{obj.name}", **border_props})
-                        )
+                        if len(border_props):
+                            face_output_group = SVG_Group(border_props)
+                            object_group.add(face_output_group)
+                        else:
+                            face_output_group = object_group
 
                         # calculate step depth
                         if wm.algo_shade == "depth" or wm.use_effect == "explode":
@@ -925,7 +978,7 @@ class ExportSVG(bpy.types.Operator):
                                         "transform"
                                     ] = f"rotate({str(dis * ExportSVG.noise(0, wm.fac_expl))},{m})"
 
-                                object_group.add(
+                                face_output_group.add(
                                     SVG_Element("polygon", polygon_properties)
                                 )
 
@@ -947,7 +1000,7 @@ class ExportSVG(bpy.types.Operator):
                                 y = float(xy[1])
 
                                 if wm.use_effect == "circles" and l > 1:
-                                    object_group.add(
+                                    face_output_group.add(
                                         SVG_Element(
                                             "circle",
                                             {
@@ -962,7 +1015,7 @@ class ExportSVG(bpy.types.Operator):
                                     )
 
                                 if wm.use_effect == "squares" and l > 1:
-                                    object_group.add(
+                                    face_output_group.add(
                                         SVG_Element(
                                             "rect",
                                             {
@@ -1120,7 +1173,7 @@ class ExportSVG(bpy.types.Operator):
                     if wm.extra_bordes != "nothing":
                         borders_group = SVG_Group(
                             {
-                                "id": f"bordes.{o.name}",
+                                "id": f"bordes.{obj.name}",
                                 "stroke": str_rgb(wm.col_6),
                                 "stroke-linecap": "round",
                                 "fill": "none",
@@ -1208,7 +1261,7 @@ class ExportSVG(bpy.types.Operator):
                                                     "stroke-width": round(
                                                         wm.stroke_wid, 2
                                                     ),
-                                                    "d": "M {a} {b} Q {e},{f} {c},{d}",
+                                                    "d": f"M {a} {b} Q {e},{f} {c},{d}",
                                                 },
                                             )
                                         )
@@ -1239,7 +1292,7 @@ class ExportSVG(bpy.types.Operator):
                                                 "path",
                                                 {
                                                     "fill": str_rgb(wm.col_6),
-                                                    "d": "M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}",
+                                                    "d": f"M {a},{b} Q {e},{f} {c},{d} Q {g},{h} {a},{b}",
                                                 },
                                             )
                                         )
@@ -1396,15 +1449,9 @@ class ExportSVG(bpy.types.Operator):
                                 )
                             )
 
-                # cleaning temporary object from 'join'
-                if wm.join_objs:  ### and len(sel) > 1
-                    for o in valid_selected_objects:
-                        o.select_set(True)
-                    context.view_layer.objects.active = valid_selected_objects[-1]
-                    tmp = join.data
-                    sce.collection.objects.unlink(join)
-                    bpy.data.objects.remove(join)
-                    bpy.data.meshes.remove(tmp)
+                # cleaning actions
+                for clean_up in reversed(clean_ups):
+                    clean_up()
 
                 new_session_comment = SVG_Entity(TAT_Comment("new blender session"))
                 total_write = lambda: write_full_svg(
@@ -1722,7 +1769,7 @@ bpy.types.WindowManager.algo_edge = bpy.props.EnumProperty(
     items=[
         ("nothing", "0. Nothing", "Skip from export"),
         ("linear", "1. Linear", "Regular Edges"),
-        ("dashed", "2. Dotted", "Dotted lines"),
+        ("dashed", "2. Dashed", "Dashed lines"),
         (
             "match_fill",
             "3. Match Fill",
